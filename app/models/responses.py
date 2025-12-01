@@ -109,36 +109,3 @@ class DemoErrorResponse(BaseModel):
     )
 
 
-class DemoCaptchaResponse(BaseModel):
-    """CAPTCHA challenge response (for abuse detection).
-
-    Attributes:
-        success: Always false (CAPTCHA required)
-        error: Error code
-        message: User-friendly message
-        action_required: "captcha" to indicate CAPTCHA needed
-        captcha_token_required: Whether captcha token is required
-        abuse_score: Abuse likelihood score (0.0-1.0)
-    """
-
-    success: bool = Field(default=False, description="Always false")
-    error: str = Field(default="suspicious_behavior_detected")
-    message: str = Field(...)
-    action_required: str = Field(default="captcha", description='Action required ("captcha")')
-    captcha_token_required: bool = Field(
-        default=True, description="Whether CAPTCHA token is required"
-    )
-    abuse_score: float = Field(ge=0.0, le=1.0, description="Abuse likelihood (0.0-1.0)")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "success": False,
-                "error": "suspicious_behavior_detected",
-                "message": "Actividad sospechosa detectada. Completa CAPTCHA para continuar.",
-                "action_required": "captcha",
-                "captcha_token_required": True,
-                "abuse_score": 0.78,
-            }
-        }
-    )
