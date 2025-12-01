@@ -9,14 +9,14 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from demo_agent.config.settings import config
-from demo_agent.rate_limiter.token_bucket import TokenBucket
+from app.config.settings import settings
+from app.rate_limiter.token_bucket import TokenBucket
 
 
 @pytest.fixture
 def token_bucket():
     """Create TokenBucket instance with mocked database."""
-    with patch("demo_agent.rate_limiter.token_bucket.get_db") as mock_db:
+    with patch("app.rate_limiter.token_bucket.get_db") as mock_db:
         mock_db.return_value = Mock()
         bucket = TokenBucket()
         # Use AsyncMock for async methods
@@ -35,7 +35,7 @@ async def test_check_quota_new_user(token_bucket):
     can_proceed, tokens_remaining = await token_bucket.check_quota("user_123", tokens_needed=100)
 
     assert can_proceed is True
-    assert tokens_remaining == config.DEMO_MAX_TOKENS - 100
+    assert tokens_remaining == settings.demo_max_tokens - 100
     token_bucket.db.execute.assert_called_once()
 
 
@@ -56,7 +56,7 @@ async def test_check_quota_user_with_remaining(token_bucket):
     can_proceed, tokens_remaining = await token_bucket.check_quota("user_123", tokens_needed=100)
 
     assert can_proceed is True
-    expected_remaining = config.DEMO_MAX_TOKENS - 1000 - 100
+    expected_remaining = settings.demo_max_tokens - 1000 - 100
     assert tokens_remaining == expected_remaining
 
 
@@ -66,7 +66,7 @@ async def test_check_quota_quota_exhausted(token_bucket):
     mock_result = {
         "id": 1,
         "user_key": "user_123",
-        "tokens_consumed": config.DEMO_MAX_TOKENS - 50,
+        "tokens_consumed": settings.demo_max_tokens - 50,
         "requests_count": 100,
         "last_reset": datetime.now(timezone.utc),
         "is_blocked": False,
@@ -87,7 +87,7 @@ async def test_check_quota_auto_reset_daily(token_bucket):
     mock_result = {
         "id": 1,
         "user_key": "user_123",
-        "tokens_consumed": config.DEMO_MAX_TOKENS,
+        "tokens_consumed": settings.demo_max_tokens,
         "requests_count": 50,
         "last_reset": yesterday,
         "is_blocked": False,
@@ -98,7 +98,7 @@ async def test_check_quota_auto_reset_daily(token_bucket):
     can_proceed, tokens_remaining = await token_bucket.check_quota("user_123", tokens_needed=100)
 
     assert can_proceed is True
-    assert tokens_remaining == config.DEMO_MAX_TOKENS - 100
+    assert tokens_remaining == settings.demo_max_tokens - 100
     # Verify reset query was called
     reset_call = token_bucket.db.execute.call_args_list[0]
     assert "tokens_consumed = 0" in reset_call[0][0]
@@ -111,7 +111,7 @@ async def test_check_quota_blocked_user_active(token_bucket):
     mock_result = {
         "id": 1,
         "user_key": "user_123",
-        "tokens_consumed": config.DEMO_MAX_TOKENS,
+        "tokens_consumed": settings.demo_max_tokens,
         "requests_count": 50,
         "last_reset": datetime.now(timezone.utc),
         "is_blocked": True,
@@ -131,7 +131,7 @@ async def test_check_quota_blocked_user_expired(token_bucket):
     mock_result = {
         "id": 1,
         "user_key": "user_123",
-        "tokens_consumed": config.DEMO_MAX_TOKENS,
+        "tokens_consumed": settings.demo_max_tokens,
         "requests_count": 50,
         "last_reset": datetime.now(timezone.utc),
         "is_blocked": True,
@@ -160,7 +160,7 @@ async def test_deduct_tokens_success(token_bucket):
 
     tokens_remaining = await token_bucket.deduct_tokens("user_123", tokens_used=500)
 
-    expected_remaining = config.DEMO_MAX_TOKENS - 1500
+    expected_remaining = settings.demo_max_tokens - 1500
     assert tokens_remaining == expected_remaining
 
 
@@ -168,7 +168,7 @@ async def test_deduct_tokens_success(token_bucket):
 async def test_deduct_tokens_quota_exceeded(token_bucket):
     """Test token deduction triggers blocking."""
     mock_result = {
-        "tokens_consumed": config.DEMO_MAX_TOKENS + 100,
+        "tokens_consumed": settings.demo_max_tokens + 100,
         "is_blocked": False,
     }
     token_bucket.db.execute_one.return_value = mock_result
@@ -188,7 +188,7 @@ async def test_deduct_tokens_user_not_found(token_bucket):
 
     tokens_remaining = await token_bucket.deduct_tokens("nonexistent_user", tokens_used=500)
 
-    assert tokens_remaining == config.DEMO_MAX_TOKENS
+    assert tokens_remaining == settings.demo_max_tokens
 
 
 @pytest.mark.asyncio
@@ -199,7 +199,7 @@ async def test_get_quota_status_new_user(token_bucket):
     status = await token_bucket.get_quota_status("user_123")
 
     assert status["tokens_used"] == 0
-    assert status["tokens_remaining"] == config.DEMO_MAX_TOKENS
+    assert status["tokens_remaining"] == settings.demo_max_tokens
     assert status["percentage_used"] == 0
     assert status["is_blocked"] is False
     assert status["blocked_until"] is None
@@ -220,7 +220,7 @@ async def test_get_quota_status_with_consumption(token_bucket):
     status = await token_bucket.get_quota_status("user_123")
 
     assert status["tokens_used"] == 2500
-    assert status["tokens_remaining"] == config.DEMO_MAX_TOKENS - 2500
+    assert status["tokens_remaining"] == settings.demo_max_tokens - 2500
     assert status["percentage_used"] == 50
     assert status["requests_count"] == 10
 
@@ -290,7 +290,7 @@ async def test_error_handling_check_quota(token_bucket):
 
     # Should fail open on error
     assert can_proceed is True
-    assert tokens_remaining == config.DEMO_MAX_TOKENS
+    assert tokens_remaining == settings.demo_max_tokens
 
 
 @pytest.mark.asyncio
@@ -300,7 +300,7 @@ async def test_error_handling_deduct_tokens(token_bucket):
 
     tokens_remaining = await token_bucket.deduct_tokens("user_123", tokens_used=100)
 
-    assert tokens_remaining == config.DEMO_MAX_TOKENS
+    assert tokens_remaining == settings.demo_max_tokens
 
 
 # ============================================================================

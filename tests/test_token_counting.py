@@ -10,19 +10,19 @@ Version: 1.0.0
 from unittest.mock import Mock, patch
 
 import pytest
-from demo_agent.gemini_client import GeminiClient
+from app.services.gemini_client import GeminiClient
 
 
 @pytest.fixture
 def mock_gemini_client():
     """Create a mocked Gemini client."""
-    with patch("demo_agent.gemini_client.config") as mock_config:
+    with patch("app.services.gemini_client.settings") as mock_config:
         mock_config.GOOGLE_API_KEY = "AIzaSyTest"
         mock_config.MODEL = "gemini-2.5-flash"
         mock_config.TEMPERATURE = 0.2
         mock_config.MAX_OUTPUT_TOKENS = 2048
 
-        with patch("demo_agent.gemini_client.genai") as mock_genai:
+        with patch("app.services.gemini_client.genai") as mock_genai:
             mock_client = Mock()
             mock_genai.Client.return_value = mock_client
 

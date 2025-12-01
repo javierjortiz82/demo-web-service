@@ -8,14 +8,14 @@ Version: 1.0.0
 from unittest.mock import Mock, patch
 
 import pytest
-from demo_agent.config.settings import config
-from demo_agent.security.ip_limiter import IPLimiter
+from app.config.settings import settings
+from app.security.ip_limiter import IPLimiter
 
 
 @pytest.fixture
 def ip_limiter():
     """Create IPLimiter instance with mocked database."""
-    with patch("demo_agent.security.ip_limiter.get_db") as mock_db:
+    with patch("app.security.ip_limiter.get_db") as mock_db:
         mock_db.return_value = Mock()
         limiter = IPLimiter()
         limiter.db = Mock()
@@ -36,12 +36,12 @@ async def test_check_rate_limit_allowed(ip_limiter):
 @pytest.mark.asyncio
 async def test_check_rate_limit_exceeded(ip_limiter):
     """Test rate limit when exceeded."""
-    ip_limiter.db.execute_one.return_value = {"request_count": config.IP_RATE_LIMIT_REQUESTS + 10}
+    ip_limiter.db.execute_one.return_value = {"request_count": settings.ip_rate_limit_requests + 10}
 
     allowed, count = await ip_limiter.check_rate_limit("203.0.113.42")
 
     assert allowed is False
-    assert count >= config.IP_RATE_LIMIT_REQUESTS
+    assert count >= settings.ip_rate_limit_requests
 
 
 @pytest.mark.asyncio

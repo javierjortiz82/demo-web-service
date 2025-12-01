@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
-from demo_agent.security.ip_limiter import IPLimiter
+from app.security.ip_limiter import IPLimiter
 
 # ============================================================================
 # Fixtures
