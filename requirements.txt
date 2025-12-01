@@ -1,0 +1,39 @@
+# Demo Agent Requirements
+# Python 3.10+ compatible
+
+# Core dependencies
+pydantic>=2.11.0
+pydantic-settings>=2.11.0
+python-dotenv>=1.0.0
+email-validator>=2.2.0  # For email validation in Pydantic
+
+# FastAPI and async web server
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+jinja2>=3.1.0
+
+# Database (async PostgreSQL)
+asyncpg>=0.30.0
+
+# Google Gen AI SDK (REQ-1: Gemini 2.5 via Vertex AI)
+google-genai>=1.0.0
+
+# Structured Logging (REQ-1)
+structlog>=24.4.0
+
+# Security & Authentication
+PyJWT[crypto]>=2.9.0  # For Clerk JWT verification (uses public JWKS)
+
+# Logging
+python-json-logger==2.0.7
+
+# Development
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+black>=24.0.0
+isort>=5.13.0
+ruff>=0.8.0
+mypy>=1.13.0
+
+# Optional: Redis for advanced caching (fallback to PostgreSQL)
+# redis==5.0.1

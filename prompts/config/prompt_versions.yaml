@@ -1,0 +1,286 @@
+# Prompt Versions Configuration
+# This file controls which prompt versions are active for each agent
+# and configures A/B testing experiments.
+#
+# Author: Lab01-MCP Team
+# Created: 2025-10-11
+# Version: 1.1.0 (Sales Agent A/B testing configured)
+
+# ==============================================================================
+# Active Prompt Versions
+# ==============================================================================
+# Specify which version of each prompt template to use.
+# Change versions here to switch prompts without code changes.
+
+active_versions:
+  router: v1.0       # Intent classification prompt
+  booking: v2.1      # Booking agent system prompt - MODULAR
+                     # v1.0: Direct confirmation (legacy)
+                     # v1.1: Pre-confirmation summary (legacy A/B variant)
+                     # v2.0: Smart UX with intent detection
+                     # v2.1: [NEW] Gemini 2.5 best practices (scope + UX optimization)
+  general: v1.0      # General agent system prompt - MODULAR
+                     # v1.0: Detailed responses (default)
+                     # v1.1: Concise responses (A/B test variant)
+  sales: v1.0        # Sales agent (OdiseoBot) system prompt - MODULAR
+                     # v1.0: 4 products pagination (default)
+                     # v1.1: 6 products pagination (A/B test variant)
+  demo: v1.0         # Demo agent system prompt - MODULAR
+                     # v1.0: FAQ-based responses with token warnings
+
+# ==============================================================================
+# Template Mode Configuration
+# ==============================================================================
+# Control whether to use templates or fallback to hardcoded prompts
+
+use_templates: true   # true = use Jinja2 templates, false = use legacy prompts
+
+# ==============================================================================
+# A/B Testing Configuration
+# ==============================================================================
+# Enable A/B testing to compare different prompt versions
+
+ab_testing:
+  enabled: false      # Master switch for A/B testing (set true to activate)
+
+  experiments:
+    # ===========================================================================
+    # ACTIVE EXPERIMENT: Sales Agent Pagination Optimization
+    # ===========================================================================
+    # Hypothesis: 6 products reduce decision fatigue vs 4 products
+    # Metrics: conversion_rate, time_to_decision, user_satisfaction
+    # Start: 2025-10-11, Duration: 2 weeks
+    # ===========================================================================
+    - name: sales_pagination_6_products
+      agent: sales
+      description: "Test 6-product pagination vs 4-product (industry best practice 2025)"
+      version_a: v1.0              # Control: 4 products (current default)
+      version_a_params:
+        pagination_page_size: 4
+      version_b: v1.1              # Variant: 6 products (hypothesis: better UX)
+      version_b_params:
+        pagination_page_size: 6
+      traffic_split: 0.5           # 50% to each version
+      enabled: false               # Set true to activate experiment
+      metrics:
+        - conversion_rate          # Primary: % users who add to cart
+        - time_to_decision         # Secondary: avg seconds to selection
+        - user_satisfaction        # Secondary: explicit user feedback
+        - pagination_clicks        # Secondary: "show more" click rate
+      success_criteria:
+        - "version_b.conversion_rate > version_a.conversion_rate + 5%"
+        - "version_b.user_satisfaction >= version_a.user_satisfaction"
+
+    # ===========================================================================
+    # BOOKING AGENT EXPERIMENT: Confirmation Flow Optimization
+    # ===========================================================================
+    # Hypothesis: Showing summary BEFORE confirming reduces booking errors
+    # Metrics: booking_success_rate, data_correction_requests, user_satisfaction
+    # Start: 2025-10-11, Duration: 2 weeks
+    # ===========================================================================
+    - name: booking_confirmation_flow
+      agent: booking
+      description: "Test pre-confirmation summary vs direct booking (error reduction)"
+      version_a: v1.0              # Control: Direct confirmation (current flow)
+      version_a_params:
+        show_pre_confirmation_summary: false
+      version_b: v1.1              # Variant: Show summary before confirming
+      version_b_params:
+        show_pre_confirmation_summary: true
+      traffic_split: 0.5           # 50% to each version
+      enabled: false               # Set true to activate experiment
+      metrics:
+        - booking_success_rate     # Primary: % bookings completed without errors
+        - data_correction_requests # Secondary: # times user edits data
+        - user_satisfaction        # Secondary: explicit user feedback
+        - booking_completion_time  # Secondary: avg time to complete booking
+      success_criteria:
+        - "version_b.booking_success_rate > version_a.booking_success_rate + 3%"
+        - "version_b.data_correction_requests < version_a.data_correction_requests"
+        - "version_b.user_satisfaction >= version_a.user_satisfaction"
+
+    # ===========================================================================
+    # GENERAL AGENT EXPERIMENT: Response Style Optimization
+    # ===========================================================================
+    # Hypothesis: Concise responses improve user_satisfaction vs detailed responses
+    # Metrics: user_satisfaction, response_time, followup_questions_rate
+    # Start: 2025-10-11, Duration: 2 weeks
+    # ===========================================================================
+    - name: general_response_style
+      agent: general
+      description: "Test concise vs detailed response style (user satisfaction)"
+      version_a: v1.0              # Control: Detailed responses (current)
+      version_a_params:
+        response_detail_level: "detailed"
+      version_b: v1.1              # Variant: Concise responses
+      version_b_params:
+        response_detail_level: "concise"
+      traffic_split: 0.5           # 50% to each version
+      enabled: false               # Set true to activate experiment
+      metrics:
+        - user_satisfaction        # Primary: explicit user feedback/rating
+        - response_time            # Secondary: avg time to generate response
+        - followup_questions_rate  # Secondary: % users asking for clarification
+        - conversation_length      # Secondary: avg messages per conversation
+      success_criteria:
+        - "version_b.user_satisfaction >= version_a.user_satisfaction"
+        - "version_b.followup_questions_rate <= version_a.followup_questions_rate"
+
+    # ===========================================================================
+    # BOOKING AGENT EXPERIMENT: Gemini 2.5 Best Practices (Scope + UX)
+    # ===========================================================================
+    # Hypothesis: Strict scope boundaries + UX optimization improves quality
+    # Metrics: hallucination_rate, off_topic_responses, user_satisfaction
+    # Start: 2025-10-19, Duration: 2 weeks
+    # ===========================================================================
+    - name: booking_gemini_2_5_best_practices
+      agent: booking
+      description: "Test Gemini 2.5 best practices (scope guardrails + UX optimization)"
+      version_a: v2.0              # Control: Smart UX with intent detection
+      version_a_params:
+        scope_enforcement: "soft"    # Only in instructions
+        ux_optimization: "basic"     # Basic flow
+      version_b: v2.1              # Variant: Full Gemini 2.5 best practices
+      version_b_params:
+        scope_enforcement: "strict"  # Explicit guardrails module
+        ux_optimization: "advanced"  # Conditional flows + anti-redundancy
+      traffic_split: 0.5           # 50% to each version
+      enabled: false               # Set true to activate experiment
+      metrics:
+        - hallucination_rate         # Primary: % responses with made-up data
+        - off_topic_responses        # Primary: % responses outside scope
+        - user_satisfaction          # Secondary: explicit user feedback
+        - response_quality_score     # Secondary: relevance + accuracy
+        - context_reuse_efficiency   # Secondary: % avoiding redundant questions
+      success_criteria:
+        - "version_b.hallucination_rate < version_a.hallucination_rate"
+        - "version_b.off_topic_responses < version_a.off_topic_responses"
+        - "version_b.user_satisfaction >= version_a.user_satisfaction"
+
+    # Example experiment: test new router classification approach
+    - name: router_more_specific
+      agent: router
+      description: "Test more specific intent classification"
+      version_a: v1.0
+      version_b: v2.0
+      traffic_split: 0.5    # 50% to each version
+      enabled: false
+
+# ==============================================================================
+# Prompt Cache Configuration
+# ==============================================================================
+# Control caching behavior for prompt loading
+
+cache:
+  enabled: true                    # Enable prompt caching
+  ttl_seconds: 3600               # Cache TTL (1 hour)
+  refresh_on_data_change: true    # Reload when data files change
+
+# ==============================================================================
+# Database Integration
+# ==============================================================================
+# Configure dynamic data loading from database
+
+database_integration:
+  enabled: true                    # Enable DB data loading
+
+  # Services data (for booking agent)
+  services:
+    source: database              # "database" or "yaml"
+    table: test.service_types
+    cache_ttl_minutes: 15         # Refresh every 15 minutes
+
+  # Business hours (for general agent)
+  business_hours:
+    source: database              # "database" or "yaml"
+    table: test.business_hours
+    cache_ttl_minutes: 60         # Refresh every hour
+
+  # Demo FAQs (for demo agent)
+  demo_faqs:
+    source: yaml                  # Static YAML file (single source of truth)
+    file: demo_faqs.yaml          # Filename only (data/ directory is automatic)
+    cache_ttl_minutes: 60         # Cache FAQs for 1 hour
+
+# ==============================================================================
+# Logging and Debugging
+# ==============================================================================
+
+logging:
+  log_template_renders: false     # Log each template render
+  log_data_loads: true            # Log data file loads
+  log_version_switches: true      # Log when versions change
+
+# ==============================================================================
+# Version Management & Rollback Instructions
+# ==============================================================================
+#
+# HOW TO SWITCH VERSIONS (Instant, no restart required):
+# -------------------------------------------------------
+# 1. Edit active_versions section above
+# 2. Change version number (e.g., sales: v1.0 → sales: v1.1)
+# 3. Save file
+# 4. Next request automatically uses new version
+#
+# Example: Switch Sales Agent to 6-product pagination
+#   active_versions:
+#     sales: v1.1    # Was v1.0
+#
+# HOW TO ROLLBACK (Instant recovery from issues):
+# -------------------------------------------------------
+# 1. Edit active_versions section
+# 2. Change back to previous version
+# 3. Save file
+# 4. System immediately reverts to previous prompt
+#
+# Example: Rollback Sales Agent to 4-product pagination
+#   active_versions:
+#     sales: v1.0    # Was v1.1
+#
+# HOW TO ENABLE A/B TESTING:
+# -------------------------------------------------------
+# 1. Set ab_testing.enabled: true
+# 2. Find experiment in experiments list
+# 3. Set experiment.enabled: true
+# 4. Adjust traffic_split if needed (0.5 = 50/50)
+# 5. Save file
+# 6. System automatically splits traffic
+#
+# Example: Enable pagination A/B test
+#   ab_testing:
+#     enabled: true
+#     experiments:
+#       - name: sales_pagination_6_products
+#         enabled: true
+#         traffic_split: 0.5
+#
+# HOW TO CREATE NEW VERSION:
+# -------------------------------------------------------
+# 1. Copy existing template (e.g., sales_agent/sales_agent.jinja2)
+# 2. Modify as needed (change modules, add content)
+# 3. Update version variable in template header
+# 4. Test with PromptManager.get_sales_prompt(version="v1.2")
+# 5. Add to active_versions when ready
+#
+# MONITORING BEST PRACTICES:
+# -------------------------------------------------------
+# - Enable logging.log_version_switches: true
+# - Monitor metrics defined in experiments
+# - Run A/B tests for minimum 2 weeks (statistical significance)
+# - Document results in docs/NOTAS_CLAUDE.md
+# - Rollback immediately if version_b performs worse
+#
+# VERSION NAMING CONVENTION:
+# -------------------------------------------------------
+# - v1.0: Initial version (4-product pagination)
+# - v1.1: Minor change (6-product pagination)
+# - v2.0: Major redesign (complete prompt rewrite)
+# - vX.Y-experimental: Experimental/beta versions
+#
+# SAFETY GUARDRAILS:
+# -------------------------------------------------------
+# - Always test new versions in staging first
+# - Use traffic_split: 0.1 (10%) for initial rollout
+# - Monitor error rates closely during experiments
+# - Keep fallback mechanism active (use_templates: true + legacy prompts)
+# - Document all version changes in git commits

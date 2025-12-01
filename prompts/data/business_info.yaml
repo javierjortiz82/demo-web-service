@@ -1,0 +1,54 @@
+# Business Information Configuration
+# ==================================
+# Company information, contact details, and business hours.
+#
+# This file can be updated without changing code.
+# Changes here will be reflected in GeneralAgent responses.
+#
+# Author: Lab01-MCP Team
+# Created: 2025-10-11
+# Version: 1.0.0
+
+# Company Information
+company_name: Lab01-MCP
+description: Tienda especializada en tecnología, productos innovadores para hogar, oficina, y estilo de vida
+mission: Ofrecer productos de calidad con tecnología de punta y excelente servicio al cliente
+
+# Product Categories
+categories:
+  - Computación
+  - Audio
+  - Hogar Inteligente
+  - Deportes
+  - Automotriz
+  - Gaming
+
+# Business Hours
+hours:
+  "Lunes a Viernes": "9:00 AM - 6:00 PM"
+  "Sábado": "10:00 AM - 2:00 PM"
+  "Domingo": "Cerrado"
+
+online_availability: "24/7 a través de este chat"
+timezone: "América/New York (EST/EDT)"
+
+# Contact Information
+contact:
+  email: support@lab01-mcp.com
+  phone: "+1-555-LAB-0001"
+  phone_hours: "Lun-Vie 9am-6pm"
+  chat: "Disponible 24/7 (este sistema)"
+  tickets: "Sistema de tickets para problemas técnicos"
+  social: "@Lab01MCP (Instagram, Twitter, Facebook)"
+
+# Location (optional)
+location:
+  address: ""  # Can be added later
+  city: ""
+  state: ""
+  country: "United States"
+  zip_code: ""
+
+# Additional Info
+founded: 2024
+slogan: "Tecnología que transforma tu vida"

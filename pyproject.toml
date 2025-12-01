@@ -1,0 +1,110 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "demo-agent"
+version = "1.0.0"
+description = "Demo agent with token-bucket rate limiting and FAQ-based responses"
+readme = "README.md"
+authors = [
+    {name = "Lab01-MCP Team", email = "team@lab01-mcp.com"}
+]
+license = {text = "MIT"}
+requires-python = ">=3.10"
+
+dependencies = [
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.6.0",
+    "python-dotenv>=1.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "psycopg2-binary>=2.9.10",
+    "sqlalchemy>=2.0.36",
+    "google-cloud-aiplatform>=1.74.0",
+    "requests>=2.32.0",
+    "structlog>=24.4.0",
+    "httpx>=0.28.0",
+    "jinja2>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "black>=24.0.0",
+    "isort>=5.13.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/lab01-mcp/MCP-Server"
+Repository = "https://github.com/lab01-mcp/MCP-Server"
+Issues = "https://github.com/lab01-mcp/MCP-Server/issues"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "C4",   # flake8-comprehensions (not C90 mccabe)
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+]
+ignore = [
+    "E501",  # line too long
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 25
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict = true
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "."
+
+[[tool.mypy.overrides]]
+module = ["vertexai.*", "google.*", "structlog.*"]
+ignore_missing_imports = true

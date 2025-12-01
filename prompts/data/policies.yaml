@@ -1,0 +1,70 @@
+# Policies Configuration
+# ======================
+# Company policies for payment, shipping, returns, and warranty.
+#
+# This file can be updated without changing code.
+# Changes here will be reflected in GeneralAgent responses.
+#
+# Author: Lab01-MCP Team
+# Created: 2025-10-11
+# Version: 1.0.0
+
+# Payment Methods
+payment_methods:
+  accepted:
+    - "Tarjetas de crédito (Visa, MasterCard, American Express)"
+    - "Tarjetas de débito"
+    - "PayPal"
+    - "Transferencias bancarias"
+    - "Pago contra entrega (según zona)"
+
+  not_accepted:
+    - "No aceptamos cheques"
+
+# Shipping Policies
+shipping:
+  standard:
+    time: "5-7 días hábiles"
+    cost: "GRATIS en compras >$100"
+
+  express:
+    time: "2-3 días hábiles"
+    cost: 15  # USD
+
+  priority:
+    time: "1-2 días hábiles"
+    cost: 25  # USD
+
+  coverage: "Todo el país"
+  tracking: "Número de tracking por email"
+  insurance: "Incluido en todos los envíos"
+
+# Return Policy
+returns:
+  period: "30 días desde la compra"
+  condition: "Producto sin usar, empaque original"
+  refund: "100% en compras defectuosas"
+  exchanges: "Sin costo adicional"
+  process: "Contactar soporte con número de orden"
+  note: "Productos en oferta/liquidación tienen política especial"
+
+# Warranty Policy
+warranty:
+  manufacturer: "Según producto (típicamente 1-3 años)"
+  extended: "Disponible para compra"
+  coverage: "Defectos de fabricación"
+  not_covered: "Daño por mal uso, accidentes, desgaste normal"
+  process: "Contactar con número de orden y descripción del problema"
+
+# Privacy Policy (optional)
+privacy:
+  data_collection: "Recopilamos solo información necesaria para procesar pedidos"
+  data_sharing: "No compartimos información personal con terceros sin consentimiento"
+  data_security: "Utilizamos encriptación SSL para proteger datos sensibles"
+  cookies: "Usamos cookies para mejorar la experiencia del usuario"
+
+# Terms of Service (optional)
+terms:
+  last_updated: "2025-10-11"
+  user_responsibilities: "Los usuarios son responsables de mantener sus credenciales seguras"
+  dispute_resolution: "Cualquier disputa se resolverá mediante arbitraje"

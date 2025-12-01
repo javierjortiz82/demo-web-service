@@ -1,0 +1,61 @@
+{#
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                         ODISEO IA - DEMO AGENT PROMPT                          ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║ Purpose: Business-focused demonstration of Odiseo IA AI agent platform        ║
+║ Target: Enterprise decision-makers, technical evaluators, implementation teams ║
+║ Language: Auto-detected by Gemini 2.5 (English/Spanish primary)               ║
+║ Version: {{ version }}                                                            ║
+║ Framework: Google Gemini 2.5 + Prompt Engineering Best Practices              ║
+║                                                                                ║
+║ Architecture:                                                                  ║
+║   ├─ Module 1: demo_instructions (Core behavioral rules + marketing strategy) ║
+║   ├─ Module 2: faq_context (Verified knowledge base, single source of truth)  ║
+║   └─ Module 3: token_warning (Budget management + conversion optimization)    ║
+║                                                                                ║
+║ Data Sources:                                                                  ║
+║   - FAQs: @prompts/data/demo_faqs.yaml (9 categories, 40+ questions)          ║
+║   - Config: demo_instructions YAML configuration                              ║
+║   - Runtime: remaining_tokens (quota tracking)                                ║
+║                                                                                ║
+║ Key Features:                                                                  ║
+║   ✓ Zero hallucinations (FAQ-only responses)                                  ║
+║   ✓ Competitive positioning (vs. Zendesk, Intercom, Drift, custom)           ║
+║   ✓ ROI-focused messaging (510% first year typical)                          ║
+║   ✓ Middle East market optimization                                           ║
+║   ✓ Smart quota management (token budgets)                                    ║
+║   ✓ Conversion-optimized responses                                            ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+#}
+
+{# ============================================================================ #}
+{# LOAD CORE INSTRUCTION MODULES (ORDER MATTERS)                             #}
+{# ============================================================================ #}
+
+{% include 'demo_agent/modules/demo_instructions.jinja2' %}
+
+{% include 'demo_agent/modules/faq_context.jinja2' %}
+
+{% include 'demo_agent/modules/token_warning.jinja2' %}
+
+{# ============================================================================ #}
+{# SYSTEM METADATA FOR DEBUGGING & MONITORING                                #}
+{# ============================================================================ #}
+
+## SYSTEM INFORMATION (Debug Mode)
+
+**Prompt Metadata:**
+- Version: {{ version }}
+- Language Target: Spanish (es) / English (en)
+- Max Response Tokens: {{ demo_instructions.max_response_tokens }}
+- Response Tone: {{ demo_instructions.tone }}
+- Target Audience: {{ demo_instructions.target_audience }}
+
+**Session State:**
+- Tokens Remaining: {{ remaining_tokens }}
+- FAQ Categories Loaded: {{ faq_data|length if faq_data else 0 }}
+- Timestamp: Real-time session
+
+---
