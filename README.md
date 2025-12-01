@@ -73,6 +73,7 @@ graph LR
 | 🛡️ **Security Hardened** | OWASP Top 10 compliant, input sanitization, XSS prevention |
 | 📊 **Audit Logging** | Complete trail of all requests and responses |
 | 🌍 **Multi-language** | Spanish, English, Arabic support |
+| ⚡ **High Concurrency** | Multi-worker architecture with non-blocking API calls |
 
 ## 🏗️ Architecture
 
@@ -526,6 +527,63 @@ curl -X POST "http://localhost:9090/v1/demo" \
 | `ENABLE_FINGERPRINT` | ❌ | `true` | Client fingerprinting |
 | `FINGERPRINT_SCORE_THRESHOLD` | ❌ | `0.7` | Abuse detection threshold |
 | `IP_RATE_LIMIT_REQUESTS` | ❌ | `100` | Max requests per IP per minute |
+</details>
+
+<details>
+<summary><b>⚡ Concurrency</b></summary>
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `UVICORN_WORKERS` | ❌ | `4` | Number of worker processes (1-32) |
+| `MAX_CONCURRENT_REQUESTS` | ❌ | `10` | Max concurrent Gemini API calls per worker (1-100) |
+
+**Capacity Calculation:**
+```
+Total Concurrent = UVICORN_WORKERS × MAX_CONCURRENT_REQUESTS
+Example: 4 workers × 10 = 40 max concurrent Gemini API calls
+```
+</details>
+
+<details>
+<summary><b>🗄️ Database Pool</b></summary>
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DB_POOL_MIN_SIZE` | ❌ | `5` | Minimum connections per worker (1-50) |
+| `DB_POOL_MAX_SIZE` | ❌ | `20` | Maximum connections per worker (1-100) |
+| `DB_COMMAND_TIMEOUT` | ❌ | `60` | Query timeout in seconds (5-300) |
+
+**Connection Calculation:**
+```
+Total DB Connections = UVICORN_WORKERS × DB_POOL_MAX_SIZE
+Example: 4 workers × 20 = 80 max database connections
+```
+
+**PostgreSQL Configuration:**
+
+Ensure your PostgreSQL `max_connections` is properly configured:
+
+```sql
+-- Check current setting
+SHOW max_connections;
+
+-- Recommended formula:
+-- max_connections = (UVICORN_WORKERS × DB_POOL_MAX_SIZE) + 20 (overhead)
+-- Example: (4 × 20) + 20 = 100 minimum
+
+-- Update PostgreSQL configuration
+ALTER SYSTEM SET max_connections = 100;
+-- Requires PostgreSQL restart to take effect
+```
+
+| Deployment | Workers | Pool Max | Total Connections | Recommended max_connections |
+|------------|---------|----------|-------------------|----------------------------|
+| Development | 1 | 10 | 10 | 30 |
+| Small | 2 | 20 | 40 | 60 |
+| Medium | 4 | 20 | 80 | 100 |
+| Large | 8 | 20 | 160 | 200 |
+
+> ⚠️ The overhead (20) accounts for superuser connections, replication, monitoring tools, and migrations.
 </details>
 
 ## 🧪 Token Consumption Scenarios
@@ -1099,8 +1157,89 @@ Normal behavior - user reached 5,000 token limit. Quota resets automatically at 
 3. Test connection: `psql $DATABASE_URL`
 </details>
 
+## ⚡ Concurrency Architecture
+
+The service is designed for high concurrency, supporting multiple simultaneous users through a combination of process-level parallelism and thread-based non-blocking I/O.
+
+### Architecture Overview
+
+```
+                    ┌─────────────────────────────────────┐
+                    │         Load Balancer / Nginx       │
+                    └──────────────┬──────────────────────┘
+                                   │
+         ┌─────────────────────────┼─────────────────────────┐
+         │                         │                         │
+    ┌────┴────┐              ┌────┴────┐              ┌────┴────┐
+    │Worker 1 │              │Worker 2 │              │Worker N │
+    │         │              │         │              │         │
+    │ ThreadPool             │ ThreadPool             │ ThreadPool
+    │ (10 threads)           │ (10 threads)           │ (10 threads)
+    │                        │                        │
+    │ DB Pool                │ DB Pool                │ DB Pool
+    │ (5-20 conn)            │ (5-20 conn)            │ (5-20 conn)
+    └─────────┘              └─────────┘              └─────────┘
+```
+
+### How It Works
+
+1. **Uvicorn Workers**: Multiple worker processes handle requests in parallel. Each worker is an independent Python process with its own memory space.
+
+2. **ThreadPoolExecutor**: Within each worker, a thread pool handles blocking Gemini API calls without blocking the asyncio event loop. This allows multiple concurrent API calls per worker.
+
+3. **AsyncPG Connection Pool**: Database operations use async connections with a pool of 5-20 connections per worker, ensuring non-blocking database I/O.
+
+### Configuration
+
+```bash
+# .env file
+
+# Number of worker processes (default: 4)
+# Recommended: 2-4 for most deployments, up to CPU cores for high load
+UVICORN_WORKERS=4
+
+# Max concurrent Gemini API calls per worker (default: 10)
+# Controls ThreadPoolExecutor size for non-blocking API calls
+MAX_CONCURRENT_REQUESTS=10
+
+# Database pool settings per worker
+DB_POOL_MIN_SIZE=5      # Minimum connections (default: 5)
+DB_POOL_MAX_SIZE=20     # Maximum connections (default: 20)
+DB_COMMAND_TIMEOUT=60   # Query timeout in seconds (default: 60)
+```
+
+### Capacity Planning
+
+| Deployment Size | Workers | Concurrent/Worker | Total Capacity | Memory (est.) |
+|-----------------|---------|-------------------|----------------|---------------|
+| Development | 1 | 5 | 5 | ~200 MB |
+| Small (startup) | 2 | 10 | 20 | ~400 MB |
+| Medium (SMB) | 4 | 10 | 40 | ~800 MB |
+| Large (enterprise) | 8 | 15 | 120 | ~1.6 GB |
+
+### Performance Tips
+
+1. **Scale Workers First**: Increase `UVICORN_WORKERS` before `MAX_CONCURRENT_REQUESTS` for better resource isolation.
+
+2. **Monitor Memory**: Each worker uses ~100-200 MB. Adjust workers based on available RAM.
+
+3. **Database Connections**: Total DB connections = `UVICORN_WORKERS × 20` (max pool). Ensure PostgreSQL `max_connections` is configured accordingly.
+
+4. **API Quotas**: Check Google Cloud Vertex AI quotas. Default is ~60 requests/minute for Gemini 2.5 Flash.
+
+### Docker Deployment
+
+```bash
+# Deploy with custom concurrency settings
+UVICORN_WORKERS=4 MAX_CONCURRENT_REQUESTS=10 docker-compose up -d --build
+
+# Or set in .env file and run
+docker-compose up -d --build
+```
+
 ## 📈 Roadmap
 
+- [x] High concurrency support with ThreadPoolExecutor
 - [ ] Redis caching for rate limiting
 - [ ] Analytics dashboard
 - [ ] A/B testing support
@@ -1111,6 +1250,7 @@ Normal behavior - user reached 5,000 token limit. Quota resets automatically at 
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **2.1.0** | Nov 2025 | High concurrency support with ThreadPoolExecutor |
 | **2.0.0** | Nov 2025 | Simplified Clerk auth (JWKS-only) |
 | **1.0.0** | Oct 2025 | Initial release |
 

@@ -39,6 +39,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         f"Config: {settings.demo_max_tokens} tokens/day, "
         f"{settings.demo_cooldown_hours}h cooldown"
     )
+    logger.info(
+        f"Concurrency: workers={settings.uvicorn_workers}, "
+        f"max_concurrent_requests={settings.max_concurrent_requests}"
+    )
+    logger.info(
+        f"DB Pool: min={settings.db_pool_min_size}, "
+        f"max={settings.db_pool_max_size}, "
+        f"timeout={settings.db_command_timeout}s"
+    )
 
     try:
         await init_db()

@@ -185,5 +185,68 @@ docker-compose up -d --build
 docker build -t demo-agent .
 docker run -p 9090:9090 --env-file .env demo-agent
 ```
+
+## Concurrency Architecture
+
+The service supports high concurrency through a combination of:
+- **Uvicorn Workers**: Multiple processes for parallel request handling
+- **ThreadPoolExecutor**: Non-blocking Gemini API calls within each worker
+- **AsyncPG Connection Pool**: Async database operations
+
+### Configuration
+
+```bash
+# Number of worker processes (default: 4)
+UVICORN_WORKERS=4
+
+# Max concurrent Gemini API calls per worker (default: 10)
+MAX_CONCURRENT_REQUESTS=10
+
+# Database pool settings per worker
+DB_POOL_MIN_SIZE=5      # Minimum connections (default: 5)
+DB_POOL_MAX_SIZE=20     # Maximum connections (default: 20)
+DB_COMMAND_TIMEOUT=60   # Query timeout in seconds (default: 60)
+```
+
+### Capacity Calculation
+
+```
+Total Concurrent Gemini Calls = UVICORN_WORKERS × MAX_CONCURRENT_REQUESTS
+
+Example: 4 workers × 10 = 40 concurrent Gemini API calls
+```
+
+### Architecture Diagram
+
+```
+                    ┌─────────────────────────────────────┐
+                    │         Load Balancer / Nginx       │
+                    └──────────────┬──────────────────────┘
+                                   │
+         ┌─────────────────────────┼─────────────────────────┐
+         │                         │                         │
+    ┌────┴────┐              ┌────┴────┐              ┌────┴────┐
+    │Worker 1 │              │Worker 2 │              │Worker N │
+    │         │              │         │              │         │
+    │ ThreadPool(10)         │ ThreadPool(10)         │ ThreadPool(10)
+    │ DB Pool (5-20)         │ DB Pool (5-20)         │ DB Pool (5-20)
+    └─────────┘              └─────────┘              └─────────┘
+```
+
+### Implementation Details
+
+- `gemini_client.py`: Uses `asyncio.run_in_executor()` for non-blocking SDK calls
+- `connection.py`: AsyncPG pool with 5-20 connections per worker
+- `docker-compose.yml`: Configures workers via `UVICORN_WORKERS` env var
+
+### Recommended Settings
+
+| Deployment | Workers | Concurrent/Worker | Total Capacity |
+|------------|---------|-------------------|----------------|
+| Development | 1 | 5 | 5 |
+| Small | 2 | 10 | 20 |
+| Medium | 4 | 10 | 40 |
+| Large | 8 | 15 | 120 |
+
 - La pagina de Odiseo es https://www.nexusintelligent.ai/
 - Odiseo es el nombre del producto

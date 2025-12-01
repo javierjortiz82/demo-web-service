@@ -7,12 +7,20 @@ Supports authentication via:
 1. Service Account JSON file (GOOGLE_APPLICATION_CREDENTIALS)
 2. Application Default Credentials (ADC) as fallback
 
+Concurrency:
+- Uses asyncio.run_in_executor() to run blocking SDK calls in ThreadPool
+- Prevents blocking the event loop during API calls
+- Allows multiple concurrent users per worker
+
 Author: Odiseo Team
 Created: 2025-10-31
-Updated: 2025-11-29
-Version: 3.0.0 (Migrated to google-genai SDK)
+Updated: 2025-11-30
+Version: 3.1.0 (Added concurrency support with run_in_executor)
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 
 from google import genai
@@ -30,6 +38,11 @@ class GeminiClient:
     Uses the new Google Gen AI SDK (replacing deprecated vertexai.generative_models).
     Handles API calls, token counting, and error handling.
 
+    Concurrency:
+    - Uses ThreadPoolExecutor for blocking SDK calls
+    - run_in_executor prevents blocking the asyncio event loop
+    - Multiple users can be served concurrently per worker
+
     Supports authentication via:
     - Service Account JSON file (recommended for production)
     - Application Default Credentials (ADC) as fallback
@@ -37,7 +50,13 @@ class GeminiClient:
     Attributes:
         client: Google Gen AI Client instance
         model_name: Model to use (e.g., gemini-2.5-flash)
+        _executor: ThreadPoolExecutor for blocking calls
     """
+
+    # Shared ThreadPoolExecutor for all instances (per worker process)
+    # Size configured via MAX_CONCURRENT_REQUESTS environment variable
+    _executor: ThreadPoolExecutor | None = None
+    _max_workers: int = 0
 
     def __init__(self) -> None:
         """Initialize Gemini client via Google Gen AI SDK.
@@ -55,6 +74,20 @@ class GeminiClient:
             raise ValueError(
                 "GCP_PROJECT_ID is required for Vertex AI. "
                 "Set GCP_PROJECT_ID in your environment."
+            )
+
+        # Initialize shared ThreadPoolExecutor (once per worker)
+        # Size is configurable via MAX_CONCURRENT_REQUESTS env var
+        max_workers = settings.max_concurrent_requests
+        if GeminiClient._executor is None:
+            GeminiClient._executor = ThreadPoolExecutor(
+                max_workers=max_workers,
+                thread_name_prefix="gemini_api_"
+            )
+            GeminiClient._max_workers = max_workers
+            logger.info(
+                f"ThreadPoolExecutor initialized for Gemini API calls "
+                f"(max_workers={max_workers}, configurable via MAX_CONCURRENT_REQUESTS)"
             )
 
         # Validate credentials file if configured
@@ -108,6 +141,54 @@ class GeminiClient:
 
         logger.info(f"Using service account credentials from: {credentials_path}")
 
+    def _sync_count_tokens(self, contents: str) -> int:
+        """Synchronous token counting (runs in thread pool).
+
+        Args:
+            contents: Text to count tokens for.
+
+        Returns:
+            Token count or 0 on error.
+        """
+        try:
+            response = self.client.models.count_tokens(
+                model=self.model_name,
+                contents=contents,
+            )
+            return response.total_tokens or 0
+        except Exception as e:
+            logger.warning(f"Failed to count tokens: {e}")
+            return len(contents.split())
+
+    def _sync_generate_content(
+        self,
+        user_message: str,
+        config: GenerateContentConfig,
+    ) -> str:
+        """Synchronous content generation (runs in thread pool).
+
+        Args:
+            user_message: User query.
+            config: Generation configuration.
+
+        Returns:
+            Generated response text.
+
+        Raises:
+            RuntimeError: If response is empty.
+        """
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=user_message,
+            config=config,
+        )
+
+        response_text = response.text if response.text else ""
+        if not response_text:
+            raise RuntimeError("Empty response from Gemini API")
+
+        return response_text
+
     async def generate_response(
         self,
         system_prompt: str,
@@ -116,6 +197,9 @@ class GeminiClient:
         max_output_tokens: int | None = None,
     ) -> tuple[str, int]:
         """Generate response using Gemini API via Google Gen AI SDK.
+
+        Uses run_in_executor to prevent blocking the event loop during
+        synchronous SDK calls. This allows multiple concurrent requests.
 
         Args:
             system_prompt: System instruction for the model.
@@ -130,6 +214,7 @@ class GeminiClient:
             RuntimeError: If API call fails.
         """
         try:
+            loop = asyncio.get_event_loop()
             temp = temperature if temperature is not None else settings.temperature
             max_tokens = max_output_tokens or settings.max_output_tokens
 
@@ -140,49 +225,28 @@ class GeminiClient:
                 system_instruction=system_prompt,
             )
 
-            # Count input tokens
+            # Count input tokens (non-blocking)
             logger.debug(f"Counting input tokens for {self.model_name}...")
-            input_tokens: int = 0
-            try:
-                token_count_response = self.client.models.count_tokens(
-                    model=self.model_name,
-                    contents=user_message,
-                )
-                input_tokens = token_count_response.total_tokens or 0
-                logger.debug(f"Input tokens: {input_tokens}")
-            except Exception as e:
-                logger.warning(f"Failed to count input tokens: {e}. Using fallback.")
-                input_tokens = len(user_message.split())
+            input_tokens = await loop.run_in_executor(
+                self._executor,
+                partial(self._sync_count_tokens, user_message),
+            )
+            logger.debug(f"Input tokens: {input_tokens}")
 
-            # Call Gemini API
+            # Call Gemini API (non-blocking) - this is the main blocking call
             logger.debug(f"Calling Gemini API ({self.model_name})...")
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=user_message,
-                config=config,
+            response_text = await loop.run_in_executor(
+                self._executor,
+                partial(self._sync_generate_content, user_message, config),
             )
 
-            # Extract response text
-            response_text = ""
-            if response.text:
-                response_text = response.text
-
-            if not response_text:
-                raise RuntimeError("Empty response from Gemini API")
-
-            # Count output tokens
+            # Count output tokens (non-blocking)
             logger.debug(f"Counting output tokens for {self.model_name}...")
-            output_tokens: int = 0
-            try:
-                output_count_response = self.client.models.count_tokens(
-                    model=self.model_name,
-                    contents=response_text,
-                )
-                output_tokens = output_count_response.total_tokens or 0
-                logger.debug(f"Output tokens: {output_tokens}")
-            except Exception as e:
-                logger.warning(f"Failed to count output tokens: {e}. Using fallback.")
-                output_tokens = len(response_text.split())
+            output_tokens = await loop.run_in_executor(
+                self._executor,
+                partial(self._sync_count_tokens, response_text),
+            )
+            logger.debug(f"Output tokens: {output_tokens}")
 
             total_tokens = input_tokens + output_tokens
 
@@ -205,6 +269,8 @@ class GeminiClient:
     ) -> int:
         """Count tokens for a request using Google Gen AI SDK.
 
+        Uses run_in_executor to prevent blocking the event loop.
+
         Args:
             system_prompt: System instruction.
             user_message: User query.
@@ -213,31 +279,20 @@ class GeminiClient:
             Accurate total token count.
         """
         try:
+            loop = asyncio.get_event_loop()
             logger.debug(f"Counting tokens for {self.model_name}...")
 
-            # Count system prompt tokens
-            prompt_tokens: int = 0
-            try:
-                prompt_response = self.client.models.count_tokens(
-                    model=self.model_name,
-                    contents=system_prompt,
-                )
-                prompt_tokens = prompt_response.total_tokens or 0
-            except Exception as e:
-                logger.warning(f"Failed to count system prompt tokens: {e}")
-                prompt_tokens = len(system_prompt.split())
-
-            # Count user message tokens
-            message_tokens: int = 0
-            try:
-                message_response = self.client.models.count_tokens(
-                    model=self.model_name,
-                    contents=user_message,
-                )
-                message_tokens = message_response.total_tokens or 0
-            except Exception as e:
-                logger.warning(f"Failed to count user message tokens: {e}")
-                message_tokens = len(user_message.split())
+            # Count both in parallel using executor (non-blocking)
+            prompt_tokens, message_tokens = await asyncio.gather(
+                loop.run_in_executor(
+                    self._executor,
+                    partial(self._sync_count_tokens, system_prompt),
+                ),
+                loop.run_in_executor(
+                    self._executor,
+                    partial(self._sync_count_tokens, user_message),
+                ),
+            )
 
             total_tokens = prompt_tokens + message_tokens
             logger.debug(

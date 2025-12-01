@@ -47,19 +47,29 @@ class AsyncDatabaseConnection:
     async def connect(self) -> None:
         """Establish async database connection pool.
 
-        FIX 3.1: Async Connection
-        - Creates asyncpg connection pool
-        - Min=5, Max=20 connections
-        - Non-blocking operations
+        Pool size is configurable via environment variables:
+        - DB_POOL_MIN_SIZE: Minimum connections (default: 5)
+        - DB_POOL_MAX_SIZE: Maximum connections (default: 20)
+        - DB_COMMAND_TIMEOUT: Query timeout in seconds (default: 60)
+
+        Note: Total DB connections = UVICORN_WORKERS × DB_POOL_MAX_SIZE
+        Ensure PostgreSQL max_connections is configured accordingly.
         """
         try:
+            min_size = settings.db_pool_min_size
+            max_size = settings.db_pool_max_size
+            command_timeout = settings.db_command_timeout
+
             self.pool = await asyncpg.create_pool(
                 self.connection_string,
-                min_size=5,
-                max_size=20,
-                command_timeout=60,
+                min_size=min_size,
+                max_size=max_size,
+                command_timeout=command_timeout,
             )
-            logger.info("✅ Connected to PostgreSQL (async pool)")
+            logger.info(
+                f"✅ Connected to PostgreSQL (async pool: "
+                f"min={min_size}, max={max_size}, timeout={command_timeout}s)"
+            )
         except Exception as e:
             logger.exception(f"Failed to connect to PostgreSQL: {e}")
             raise RuntimeError(f"Database connection failed: {e}") from e

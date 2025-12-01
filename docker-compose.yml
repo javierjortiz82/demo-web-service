@@ -20,6 +20,12 @@ services:
       - GCP_LOCATION=${GCP_LOCATION:-us-central1}
       - MODEL=${MODEL:-gemini-2.5-flash}
       - DATABASE_URL=${DATABASE_URL}
+      # Concurrency settings
+      - MAX_CONCURRENT_REQUESTS=${MAX_CONCURRENT_REQUESTS:-10}
+      # Database pool settings
+      - DB_POOL_MIN_SIZE=${DB_POOL_MIN_SIZE:-5}
+      - DB_POOL_MAX_SIZE=${DB_POOL_MAX_SIZE:-20}
+      - DB_COMMAND_TIMEOUT=${DB_COMMAND_TIMEOUT:-60}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${DEMO_AGENT_PORT:-9090}/health"]
       interval: 30s
@@ -27,7 +33,12 @@ services:
       retries: 3
       start_period: 15s
     restart: unless-stopped
-    command: uvicorn app.main:app --host 0.0.0.0 --port ${DEMO_AGENT_PORT:-9090} --workers ${UVICORN_WORKERS:-2}
+    # Concurrency config:
+    # - UVICORN_WORKERS: Number of worker processes (default: 4 for production)
+    # - Each worker has a ThreadPoolExecutor with 10 threads for Gemini API calls
+    # - Total concurrent Gemini calls = WORKERS * 10 = 40 concurrent requests
+    # - DB pool: 5-20 connections per worker
+    command: uvicorn app.main:app --host 0.0.0.0 --port ${DEMO_AGENT_PORT:-9090} --workers ${UVICORN_WORKERS:-4}
     networks:
       - docker-config
 

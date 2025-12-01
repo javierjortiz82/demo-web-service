@@ -183,6 +183,21 @@ def print_config_summary() -> None:
     _line("Clerk Auth", "enabled" if settings.enable_clerk_auth else "disabled", "green")
     _line("Fingerprint", "enabled" if settings.enable_fingerprint else "disabled")
 
+    print(f"\n  {c['g_blue']}▶ Concurrency{c['reset']}")
+    print(f"  {c['dim']}├{'─' * 55}{c['reset']}")
+    _line("Uvicorn Workers", str(settings.uvicorn_workers))
+    _line("Max Concurrent Requests", str(settings.max_concurrent_requests))
+    total_capacity = settings.uvicorn_workers * settings.max_concurrent_requests
+    _line("Total Capacity", f"{total_capacity} concurrent Gemini calls", "green")
+
+    print(f"\n  {c['g_green']}▶ Database Pool{c['reset']}")
+    print(f"  {c['dim']}├{'─' * 55}{c['reset']}")
+    _line("Pool Min Size", str(settings.db_pool_min_size))
+    _line("Pool Max Size", str(settings.db_pool_max_size))
+    _line("Command Timeout", f"{settings.db_command_timeout}s")
+    total_db_conn = settings.uvicorn_workers * settings.db_pool_max_size
+    _line("Max DB Connections", f"{total_db_conn} (workers × pool_max)", "yellow")
+
     print(f"\n  {c['cyan']}▶ Logging{c['reset']}")
     print(f"  {c['dim']}├{'─' * 55}{c['reset']}")
     _line("Level", settings.log_level, "green")

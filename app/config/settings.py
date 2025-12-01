@@ -106,6 +106,64 @@ class Settings(BaseSettings):
     ip_rate_limit_window_sec: int = Field(default=60, gt=0, alias="IP_RATE_LIMIT_WINDOW_SEC")
 
     # ========================================================================
+    # Concurrency Configuration
+    # ========================================================================
+    # Number of Uvicorn workers (processes). Each worker handles requests independently.
+    # Recommended: 2-4 for most deployments, up to CPU cores for high load.
+    uvicorn_workers: int = Field(
+        default=4,
+        ge=1,
+        le=32,
+        alias="UVICORN_WORKERS",
+        description="Number of Uvicorn worker processes",
+    )
+
+    # Maximum concurrent Gemini API calls per worker.
+    # This limits the ThreadPoolExecutor size for non-blocking API calls.
+    # Total concurrent = UVICORN_WORKERS × MAX_CONCURRENT_REQUESTS
+    # Example: 4 workers × 10 = 40 max concurrent Gemini API calls
+    max_concurrent_requests: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        alias="MAX_CONCURRENT_REQUESTS",
+        description="Max concurrent Gemini API calls per worker (ThreadPool size)",
+    )
+
+    # ========================================================================
+    # Database Pool Configuration
+    # ========================================================================
+    # Minimum number of connections to keep in the pool per worker.
+    # These connections are pre-established and ready for immediate use.
+    db_pool_min_size: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        alias="DB_POOL_MIN_SIZE",
+        description="Minimum database connections per worker",
+    )
+
+    # Maximum number of connections allowed in the pool per worker.
+    # Total DB connections = UVICORN_WORKERS × DB_POOL_MAX_SIZE
+    # Ensure PostgreSQL max_connections >= total connections + overhead
+    db_pool_max_size: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+        alias="DB_POOL_MAX_SIZE",
+        description="Maximum database connections per worker",
+    )
+
+    # Connection timeout in seconds for database queries.
+    db_command_timeout: int = Field(
+        default=60,
+        ge=5,
+        le=300,
+        alias="DB_COMMAND_TIMEOUT",
+        description="Database query timeout in seconds",
+    )
+
+    # ========================================================================
     # Proxy & IP Extraction Configuration
     # ========================================================================
     trusted_proxies: str = Field(default="", alias="TRUSTED_PROXIES")
