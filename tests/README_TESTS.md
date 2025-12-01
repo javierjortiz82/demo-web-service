@@ -177,11 +177,13 @@ python3 demo_agent/tests/setup_test_users.py
 
 ### Configuration Status
 ```
-✅ RECAPTCHA_SITE_KEY:     6Lfe9gAsAAAAAMRlPzoDXhkGrqI3yGgiLcPyGJnM
-✅ RECAPTCHA_SECRET_KEY:   6Lfe9gAsAAAAANve81zXifqSit1W5imIkCEkNbHr
+✅ RECAPTCHA_SITE_KEY:     <your-site-key>
+✅ RECAPTCHA_SECRET_KEY:   <your-secret-key>
 ✅ ENABLE_CAPTCHA:         true
 ✅ Service Status:         Running
 ```
+
+> ⚠️ **Never commit real API keys.** Configure in `.env` file only.
 
 ### Verify Configuration
 ```bash
