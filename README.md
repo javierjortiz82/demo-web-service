@@ -246,7 +246,7 @@ docker-compose up -d --build
 docker ps
 
 # View logs
-docker logs -f demo-agent-v2
+docker logs -f demo-agent
 ```
 
 ### Verify Installation
