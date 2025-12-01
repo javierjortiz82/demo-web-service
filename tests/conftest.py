@@ -27,6 +27,5 @@ def mock_config():
         "DEMO_WARNING_THRESHOLD": 85,
         "IP_RATE_LIMIT_REQUESTS": 100,
         "FINGERPRINT_SCORE_THRESHOLD": 0.7,
-        "ENABLE_CAPTCHA": True,
         "ENABLE_FINGERPRINT": True,
     }

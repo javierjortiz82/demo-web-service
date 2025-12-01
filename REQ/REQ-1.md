@@ -84,8 +84,7 @@ google-genai>=1.0.0
 # Logging
 structlog>=24.4.0
 
-# Security & HTTP
-httpx>=0.28.0
+# Security
 PyJWT[crypto]>=2.9.0
 
 # Development
@@ -100,14 +99,19 @@ isort>=5.13.0
 ### 4.2 Removed (Deprecated or Legacy)
 - `google-cloud-aiplatform` - replaced by `google-genai` (new SDK)
 - `vertexai.generative_models` - deprecated June 2025, removed June 2026
-- `requests` - replaced by async `httpx`
+- `requests` - not used (internal HTTP calls use SDK clients)
+- `httpx` - not used (no external HTTP calls needed)
 - `sqlalchemy` - using `asyncpg` directly
 - `psycopg2-binary` - replaced by `asyncpg`
 - `bcrypt` - not used (Clerk handles auth)
 - `svix` - not used (no webhook signature verification)
 - `apscheduler` - not used
 - `mcp` - not used
+- `email-validator` - not used (no EmailStr validation)
+- `python-json-logger` - not used (structlog handles logging)
 - `captcha_handler.py` - reCAPTCHA functionality removed
+- `test_captcha_handler.py` - dead test file removed
+- `DemoCaptchaResponse` - unused Pydantic model removed
 
 ---
 
