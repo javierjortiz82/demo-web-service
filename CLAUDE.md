@@ -123,6 +123,10 @@ mypy .                 # Type checking
 - Session IDs validated as UUID v4
 - Client IP extracted securely from proxy headers
 - Log sanitization (JWT, API keys, emails, IPs redacted)
+- Rate limiters fail-closed on database errors (CWE-400)
+- JWT audience validation without insecure fallbacks (CWE-347)
+- Jinja2 autoescape enabled for XSS prevention (CWE-79)
+- ThreadPoolExecutor properly shutdown on app exit
 
 ## Clerk Authentication
 
@@ -206,6 +210,7 @@ MAX_CONCURRENT_REQUESTS=10
 DB_POOL_MIN_SIZE=5      # Minimum connections (default: 5)
 DB_POOL_MAX_SIZE=20     # Maximum connections (default: 20)
 DB_COMMAND_TIMEOUT=60   # Query timeout in seconds (default: 60)
+DB_POOL_MAX_INACTIVE_LIFETIME=300  # Idle connection timeout (default: 300s)
 ```
 
 ### Capacity Calculation
@@ -247,6 +252,35 @@ Example: 4 workers × 10 = 40 concurrent Gemini API calls
 | Small | 2 | 10 | 20 |
 | Medium | 4 | 10 | 40 |
 | Large | 8 | 15 | 120 |
+
+## Security Configuration
+
+```bash
+# Abuse detection thresholds
+ABUSE_SCORE_BLOCK_THRESHOLD=0.9  # Block requests above this score (0.5-1.0)
+DEMO_TOKENS_PER_REQUEST=100      # Estimated tokens for quota pre-check
+
+# IP suspicion detection
+IP_SUSPICIOUS_REQ_PER_MIN=5      # Requests/min to flag IP as suspicious
+IP_SUSPICIOUS_UNIQUE_USERS=10    # Unique users to flag IP as suspicious
+```
+
+## Error Response Model
+
+All API errors use consistent `ErrorResponse` format:
+
+```python
+from app.models.responses import ErrorResponse
+
+# Standard error fields
+{
+    "success": False,
+    "error": "error_code",      # Snake_case identifier
+    "message": "Human message",  # User-friendly message
+    "hint": "Optional hint",     # Resolution suggestion
+    "retry_after_seconds": 300   # Optional retry time
+}
+```
 
 - La pagina de Odiseo es https://www.nexusintelligent.ai/
 - Odiseo es el nombre del producto

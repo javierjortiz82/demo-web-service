@@ -527,6 +527,10 @@ curl -X POST "http://localhost:9090/v1/demo" \
 | `ENABLE_FINGERPRINT` | ❌ | `true` | Client fingerprinting |
 | `FINGERPRINT_SCORE_THRESHOLD` | ❌ | `0.7` | Abuse detection threshold |
 | `IP_RATE_LIMIT_REQUESTS` | ❌ | `100` | Max requests per IP per minute |
+| `ABUSE_SCORE_BLOCK_THRESHOLD` | ❌ | `0.9` | Block requests above this score (0.5-1.0) |
+| `DEMO_TOKENS_PER_REQUEST` | ❌ | `100` | Estimated tokens for quota pre-check (1-1000) |
+| `IP_SUSPICIOUS_REQ_PER_MIN` | ❌ | `5` | Requests/min to flag IP as suspicious |
+| `IP_SUSPICIOUS_UNIQUE_USERS` | ❌ | `10` | Unique users to flag IP as suspicious |
 </details>
 
 <details>
@@ -552,6 +556,7 @@ Example: 4 workers × 10 = 40 max concurrent Gemini API calls
 | `DB_POOL_MIN_SIZE` | ❌ | `5` | Minimum connections per worker (1-50) |
 | `DB_POOL_MAX_SIZE` | ❌ | `20` | Maximum connections per worker (1-100) |
 | `DB_COMMAND_TIMEOUT` | ❌ | `60` | Query timeout in seconds (5-300) |
+| `DB_POOL_MAX_INACTIVE_LIFETIME` | ❌ | `300` | Idle connection timeout in seconds (60-3600) |
 
 **Connection Calculation:**
 ```
@@ -1250,6 +1255,7 @@ docker-compose up -d --build
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **2.2.0** | Dec 2025 | Security hardening: fail-closed rate limiters, configurable thresholds, idle connection management |
 | **2.1.0** | Nov 2025 | High concurrency support with ThreadPoolExecutor |
 | **2.0.0** | Nov 2025 | Simplified Clerk auth (JWKS-only) |
 | **1.0.0** | Oct 2025 | Initial release |
