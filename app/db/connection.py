@@ -60,15 +60,21 @@ class AsyncDatabaseConnection:
             max_size = settings.db_pool_max_size
             command_timeout = settings.db_command_timeout
 
+            # max_inactive_connection_lifetime: closes idle connections after N seconds
+            # This prevents stale connections and reduces memory usage
+            max_inactive = settings.db_pool_max_inactive_lifetime
+
             self.pool = await asyncpg.create_pool(
                 self.connection_string,
                 min_size=min_size,
                 max_size=max_size,
                 command_timeout=command_timeout,
+                max_inactive_connection_lifetime=max_inactive,
             )
             logger.info(
                 f"✅ Connected to PostgreSQL (async pool: "
-                f"min={min_size}, max={max_size}, timeout={command_timeout}s)"
+                f"min={min_size}, max={max_size}, timeout={command_timeout}s, "
+                f"idle_lifetime={max_inactive}s)"
             )
         except Exception as e:
             logger.exception(f"Failed to connect to PostgreSQL: {e}")

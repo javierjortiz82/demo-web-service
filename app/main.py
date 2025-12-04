@@ -22,6 +22,7 @@ from app.middleware.request_size_limit import RequestSizeLimitMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.security.clerk_middleware import ClerkAuthMiddleware
 from app.services.demo_agent import DemoAgent
+from app.services.gemini_client import GeminiClient
 from app.services.user_service import get_user_service
 from app.utils.logging import get_logger, setup_logging
 
@@ -64,6 +65,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     logger.info("Demo Agent shutting down...")
+    # CRITICAL: Shutdown ThreadPoolExecutor to prevent resource leaks
+    GeminiClient.shutdown_executor()
     await close_db()
     logger.info("Database connection closed")
 
@@ -88,16 +91,25 @@ def create_app() -> FastAPI:
     )
 
     # CORS Configuration
+    # SECURITY: Parse and validate CORS origins
     cors_origins = [
         o.strip()
         for o in settings.cors_allow_origins.split(",")
         if o.strip() and o.strip().startswith(("http://", "https://"))
     ]
 
+    # SECURITY (CWE-346): When using credentials, be explicit about origins
+    # If credentials are enabled, don't allow wildcard or too many origins
+    allow_credentials = settings.cors_allow_credentials
+    if allow_credentials and len(cors_origins) > 5:
+        logger.warning(
+            "CORS: Many origins with credentials enabled - consider restricting origins"
+        )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
-        allow_credentials=settings.cors_allow_credentials,
+        allow_credentials=allow_credentials,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )

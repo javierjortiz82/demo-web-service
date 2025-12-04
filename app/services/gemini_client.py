@@ -308,3 +308,16 @@ class GeminiClient:
             fallback_count = len(system_prompt.split()) + len(user_message.split())
             logger.warning(f"Using fallback token count: {fallback_count}")
             return fallback_count
+
+    @classmethod
+    def shutdown_executor(cls) -> None:
+        """Shutdown the ThreadPoolExecutor on application exit.
+
+        CRITICAL: Must be called during app shutdown to prevent resource leaks.
+        Threads in the executor will continue running until properly shutdown.
+        """
+        if cls._executor is not None:
+            logger.info("Shutting down Gemini ThreadPoolExecutor...")
+            cls._executor.shutdown(wait=True, cancel_futures=False)
+            cls._executor = None
+            logger.info("ThreadPoolExecutor shutdown complete")

@@ -96,7 +96,7 @@ class DemoAgent:
 
                 logger.debug(f"Abuse score: {round(abuse_score, 2)} for {user_key}")
 
-                if abuse_score > 0.9:
+                if abuse_score > settings.abuse_score_block_threshold:
                     error_msg = "Suspicious activity detected. Account blocked."
                     logger.warning(f"Critical abuse score for {user_key}: {abuse_score}")
                     await self._log_audit(
@@ -118,7 +118,9 @@ class DemoAgent:
 
             # Step 3: Check quota before processing
             can_proceed, tokens_remaining = await self.token_bucket.check_quota(
-                user_key, tokens_needed=100, user_timezone=user_timezone
+                user_key,
+                tokens_needed=settings.demo_tokens_per_request,
+                user_timezone=user_timezone,
             )
 
             if not can_proceed:

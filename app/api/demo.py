@@ -180,7 +180,8 @@ async def demo_query(request_data: DemoRequest, request: Request) -> DemoRespons
             user_email = user_result.get("email")
 
         # STEP 3: Use user_id as user_key for token tracking
-        user_key = str(user_id) if user_id else request_data.session_id or str(uuid4())
+        # SECURITY FIX: Use 'is not None' to handle user_id=0 correctly (0 is falsy but valid)
+        user_key = str(user_id) if user_id is not None else request_data.session_id or str(uuid4())
 
         # SECURITY: Validate or generate session_id
         if request_data.session_id:

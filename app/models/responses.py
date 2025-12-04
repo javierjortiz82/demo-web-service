@@ -77,21 +77,47 @@ class DemoResponse(BaseModel):
     )
 
 
-class DemoErrorResponse(BaseModel):
-    """Error demo agent response.
+class ErrorResponse(BaseModel):
+    """Standard error response for all API endpoints.
+
+    Provides consistent error format across the entire API.
 
     Attributes:
         success: Always false for error responses
-        error: Error code
-        message: Error message
+        error: Error code (snake_case identifier)
+        message: Human-readable error message
+        hint: Optional hint for resolving the error
         retry_after_seconds: Seconds to wait before retry (if applicable)
-        blocked_until: ISO 8601 timestamp when user will be unblocked (if applicable)
     """
 
     success: bool = Field(default=False, description="Always false for errors")
-    error: str = Field(..., description="Error code")
-    message: str = Field(..., description="Error message")
+    error: str = Field(..., description="Error code (e.g., 'authentication_required')")
+    message: str = Field(..., description="Human-readable error message")
+    hint: str | None = Field(None, description="Optional hint for resolving the error")
     retry_after_seconds: int | None = Field(None, ge=0, description="Seconds to wait before retry")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": False,
+                "error": "authentication_required",
+                "message": "Please log in to use this endpoint.",
+                "hint": "Ensure your session is active and try again.",
+                "retry_after_seconds": None,
+            }
+        }
+    )
+
+
+class DemoErrorResponse(ErrorResponse):
+    """Error response specific to demo endpoints.
+
+    Extends ErrorResponse with demo-specific fields.
+
+    Attributes:
+        blocked_until: ISO 8601 timestamp when user will be unblocked (if applicable)
+    """
+
     blocked_until: str | None = Field(
         None, description="ISO 8601 timestamp when unblocked (if applicable)"
     )
@@ -102,6 +128,7 @@ class DemoErrorResponse(BaseModel):
                 "success": False,
                 "error": "demo_quota_exceeded",
                 "message": "Demo bloqueada. Límite de 5,000 tokens alcanzado. Reintenta en 18 horas.",
+                "hint": "Wait for quota reset or contact support.",
                 "retry_after_seconds": 64800,
                 "blocked_until": "2025-11-01T12:30:45Z",
             }

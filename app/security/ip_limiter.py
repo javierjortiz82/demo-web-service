@@ -57,10 +57,10 @@ class IPLimiter:
         4. If count >= limit: return False
         5. If count < limit: increment and return True
         """
-        # Handle None or empty IP address - allow request without rate limiting
+        # SECURITY FIX: Fail closed on empty IP - don't allow bypass of rate limiting
         if not ip_address or not ip_address.strip():
-            logger.warning("check_rate_limit called with empty IP address, allowing request")
-            return True, 0
+            logger.error("check_rate_limit called with empty IP address - denying request")
+            return False, 0
 
         try:
             logger.debug(f"Checking rate limit for IP: {ip_address}")
@@ -95,8 +95,8 @@ class IPLimiter:
 
         except Exception as e:
             logger.error(f"Error checking rate limit for {ip_address}: {e}")
-            # Fail open: allow request but log error
-            return True, 0
+            # SECURITY: Fail closed - deny request on database errors
+            return False, 0
 
     async def get_ip_stats(self, ip_address: str) -> dict[str, Any]:
         """Get detailed statistics for an IP address.
@@ -248,8 +248,8 @@ class IPLimiter:
         try:
             stats = await self.get_ip_stats(ip_address)
 
-            # Check rate limit
-            if stats["requests_per_minute"] > 5:
+            # Check rate limit (configurable via IP_SUSPICIOUS_REQ_PER_MIN)
+            if stats["requests_per_minute"] > settings.ip_suspicious_req_per_min:
                 return (
                     True,
                     f"High request rate ({stats['requests_per_minute']} req/min)",
@@ -279,8 +279,8 @@ class IPLimiter:
             if blocked_count > 5:
                 return True, f"Multiple blocked requests ({blocked_count} in last hour)"
 
-            # Check unique users (account takeover detection)
-            if stats["unique_users"] > 10:
+            # Check unique users (account takeover detection, configurable via IP_SUSPICIOUS_UNIQUE_USERS)
+            if stats["unique_users"] > settings.ip_suspicious_unique_users:
                 return (
                     True,
                     f"Requests from {stats['unique_users']} different users (possible attack)",

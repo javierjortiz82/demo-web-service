@@ -107,54 +107,24 @@ class ClerkService:
             # Decode and verify JWT with audience validation
             # SECURITY (CWE-347 fix): Validate audience to prevent token reuse from other apps
             # Try verifying with audience first (most secure)
-            claims = None
-            try:
-                claims = jwt.decode(
-                    token,
-                    signing_key.key,
-                    algorithms=["RS256"],
-                    audience=self.publishable_key,  # CRITICAL: Validates token is for THIS app
-                    options={
-                        "verify_signature": True,
-                        "verify_exp": True,
-                        "verify_nbf": True,
-                        "verify_iat": True,
-                        "verify_aud": True,  # Enable audience verification
-                        "require": ["exp", "iat", "nbf", "sub", "aud"],  # Require audience claim
-                    },
-                )
-                logger.info("Token verified with audience claim")
-            except jwt.exceptions.MissingRequiredClaimError as e:
-                # Token is missing "aud" claim - this is common with some Clerk frontend methods
-                # SECURITY NOTE: This is less secure but compatible with more Clerk integrations
-                # In production, frontend should be configured to include "aud" claim
-                logger.warning(
-                    f"Token missing required claim, retrying without audience validation: {e}"
-                )
-
-                try:
-                    claims = jwt.decode(
-                        token,
-                        signing_key.key,
-                        algorithms=["RS256"],
-                        options={
-                            "verify_signature": True,
-                            "verify_exp": True,
-                            "verify_nbf": True,
-                            "verify_iat": True,
-                            "verify_aud": False,  # Disable audience verification
-                            "require": ["exp", "iat", "nbf", "sub"],  # Don't require audience
-                        },
-                    )
-                    logger.warning(
-                        "Token verified WITHOUT audience claim - "
-                        "Frontend should be configured to include 'aud' claim for better security"
-                    )
-                except Exception as fallback_error:
-                    logger.error(
-                        f"Token verification failed even without audience: {fallback_error}"
-                    )
-                    return None, f"Invalid token: {str(fallback_error)}"
+            # SECURITY (CWE-347): Always validate audience claim - no fallback
+            # Frontend MUST be configured to include 'aud' claim via Clerk JWT Template
+            # Fallback disabled to prevent token reuse attacks from other Clerk apps
+            claims = jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["RS256"],
+                audience=self.publishable_key if self.publishable_key else None,
+                options={
+                    "verify_signature": True,
+                    "verify_exp": True,
+                    "verify_nbf": True,
+                    "verify_iat": True,
+                    "verify_aud": bool(self.publishable_key),  # Only verify if key is configured
+                    "require": ["exp", "iat", "nbf", "sub"],
+                },
+            )
+            logger.info("Token verified successfully")
 
             # Additional validation
             current_time = int(time.time())

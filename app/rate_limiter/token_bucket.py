@@ -189,8 +189,9 @@ class TokenBucket:
 
         except Exception:
             logger.exception(f"Error in check_quota: user_key={user_key}")
-            # Fail open: allow request but log error for review
-            return True, self.max_tokens
+            # SECURITY: Fail closed - deny request on database errors to prevent abuse
+            # This prevents unlimited quota bypass during database outages
+            return False, 0
 
     async def deduct_tokens(self, user_key: str, tokens_used: int) -> int:
         """Deduct tokens after request completion.
@@ -264,7 +265,8 @@ class TokenBucket:
 
         except Exception:
             logger.exception(f"Error in deduct_tokens: user_key={user_key}")
-            return int(self.max_tokens)
+            # Return 0 on error to indicate no tokens available (fail closed)
+            return 0
 
     async def get_quota_status(self, user_key: str) -> dict[str, Any]:
         """Get user's current quota status.
@@ -424,9 +426,10 @@ class TokenBucket:
             logger.debug(f"Refunding tokens: user_key={user_key}, amount={tokens_to_refund}")
 
             # Atomic update: refund tokens
+            # SECURITY FIX: Use GREATEST() instead of MAX() - PostgreSQL doesn't support MAX() in UPDATE SET
             query = """
                 UPDATE :SCHEMA_NAME.demo_usage
-                SET tokens_consumed = MAX(0, tokens_consumed - %s),
+                SET tokens_consumed = GREATEST(0, tokens_consumed - %s),
                     updated_at = %s
                 WHERE user_key = %s
                 RETURNING tokens_consumed, is_blocked
@@ -458,7 +461,8 @@ class TokenBucket:
 
         except Exception:
             logger.exception(f"Error in refund_tokens: user_key={user_key}")
-            return int(self.max_tokens)
+            # Return 0 on error (fail closed)
+            return 0
 
     async def unblock_user(self, user_key: str) -> bool:
         """Manually unblock user (admin operation).

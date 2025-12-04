@@ -36,6 +36,7 @@ class PromptManager:
     def __init__(self) -> None:
         """Initialize PromptManager with templates and data."""
         self.prompts_dir = Path(__file__).parent.parent.parent / "prompts"
+        # SECURITY: Enable autoescape to prevent XSS if templates contain user input
         self.env = Environment(
             loader=FileSystemLoader(
                 [
@@ -43,7 +44,7 @@ class PromptManager:
                     str(self.prompts_dir / "modules"),
                 ]
             ),
-            autoescape=False,
+            autoescape=True,
         )
 
         # Load FAQ data and configuration

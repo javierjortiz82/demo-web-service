@@ -9,6 +9,8 @@ Version: 2.0.0
 
 from pathlib import Path
 
+from typing import Any
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -30,8 +32,9 @@ class Settings(BaseSettings):
     # Database Configuration
     # ========================================================================
     database_url: str = Field(
-        default="postgresql://mcp_user:mcp_password@localhost:5434/mcpdb",
+        default="",  # SECURITY: No default credentials - must be set via environment
         alias="DATABASE_URL",
+        description="PostgreSQL connection URL (required)",
     )
     schema_name: str = Field(default="test", alias="SCHEMA_NAME")
 
@@ -56,6 +59,22 @@ class Settings(BaseSettings):
     demo_max_tokens: int = Field(default=5000, gt=0, alias="DEMO_MAX_TOKENS")
     demo_cooldown_hours: int = Field(default=24, ge=1, le=168, alias="DEMO_COOLDOWN_HOURS")
     demo_warning_threshold: int = Field(default=85, ge=1, le=100, alias="DEMO_WARNING_THRESHOLD")
+    # Estimated tokens per request for quota pre-check
+    demo_tokens_per_request: int = Field(
+        default=100,
+        gt=0,
+        le=1000,
+        alias="DEMO_TOKENS_PER_REQUEST",
+        description="Estimated tokens per request for quota pre-check",
+    )
+    # Abuse score threshold for blocking (0.0-1.0)
+    abuse_score_block_threshold: float = Field(
+        default=0.9,
+        ge=0.5,
+        le=1.0,
+        alias="ABUSE_SCORE_BLOCK_THRESHOLD",
+        description="Abuse score above which requests are blocked",
+    )
 
     # ========================================================================
     # Server Configuration
@@ -104,6 +123,19 @@ class Settings(BaseSettings):
     # ========================================================================
     ip_rate_limit_requests: int = Field(default=100, gt=0, alias="IP_RATE_LIMIT_REQUESTS")
     ip_rate_limit_window_sec: int = Field(default=60, gt=0, alias="IP_RATE_LIMIT_WINDOW_SEC")
+    # IP suspicion thresholds
+    ip_suspicious_req_per_min: int = Field(
+        default=5,
+        gt=0,
+        alias="IP_SUSPICIOUS_REQ_PER_MIN",
+        description="Requests per minute threshold for suspicious IP detection",
+    )
+    ip_suspicious_unique_users: int = Field(
+        default=10,
+        gt=0,
+        alias="IP_SUSPICIOUS_UNIQUE_USERS",
+        description="Unique users threshold for suspicious IP detection",
+    )
 
     # ========================================================================
     # Concurrency Configuration
@@ -161,6 +193,15 @@ class Settings(BaseSettings):
         le=300,
         alias="DB_COMMAND_TIMEOUT",
         description="Database query timeout in seconds",
+    )
+    # Maximum time (seconds) an idle connection can stay in pool before being closed.
+    # Helps prevent stale connections and reduces memory usage.
+    db_pool_max_inactive_lifetime: float = Field(
+        default=300.0,
+        ge=60.0,
+        le=3600.0,
+        alias="DB_POOL_MAX_INACTIVE_LIFETIME",
+        description="Max seconds idle connection stays in pool",
     )
 
     # ========================================================================
@@ -221,6 +262,28 @@ class Settings(BaseSettings):
         """Validate Clerk publishable key format (optional)."""
         if v and not (v.startswith("pk_test_") or v.startswith("pk_live_")):
             return ""
+        return v
+
+    @field_validator("db_pool_max_size", mode="after")
+    @classmethod
+    def validate_pool_sizes(cls, v: int, info: Any) -> int:
+        """Validate db_pool_max_size >= db_pool_min_size."""
+        # Access other field values through info.data
+        min_size = info.data.get("db_pool_min_size", 5)
+        if v < min_size:
+            raise ValueError(
+                f"db_pool_max_size ({v}) must be >= db_pool_min_size ({min_size})"
+            )
+        return v
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """Validate database_url is provided."""
+        if not v or not v.strip():
+            raise ValueError(
+                "DATABASE_URL is required. Set it in your .env file or environment."
+            )
         return v
 
 
