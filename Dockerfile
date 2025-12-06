@@ -34,7 +34,8 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Create non-root user for security (before COPY --chown)
 RUN useradd -m -u 1000 demouser && \
-    mkdir -p /app/logs /app/credentials
+    mkdir -p /logs /app/credentials && \
+    chown -R demouser:demouser /logs /app
 
 # Copy application code with correct ownership
 COPY --chown=demouser:demouser app /app/app
@@ -44,8 +45,7 @@ COPY --chown=demouser:demouser prompts /app/prompts
 # Set Python path
 ENV PYTHONPATH=/app
 
-# Set permissions and ownership
-RUN chown -R demouser:demouser /app
+# Switch to non-root user
 USER demouser
 
 # Default port (overridable via environment)
