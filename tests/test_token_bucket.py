@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+
 from app.config.settings import settings
 from app.rate_limiter.token_bucket import TokenBucket
 

@@ -8,6 +8,7 @@ Version: 1.0.0
 from unittest.mock import Mock, patch
 
 import pytest
+
 from app.config.settings import settings
 from app.security.ip_limiter import IPLimiter
 

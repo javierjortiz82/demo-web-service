@@ -10,6 +10,7 @@ Version: 1.0.0
 from unittest.mock import Mock, patch
 
 import pytest
+
 from app.services.gemini_client import GeminiClient
 
 

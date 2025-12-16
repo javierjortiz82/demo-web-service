@@ -8,7 +8,6 @@ Version: 2.0.0
 """
 
 from pathlib import Path
-
 from typing import Any
 
 from pydantic import Field, field_validator
