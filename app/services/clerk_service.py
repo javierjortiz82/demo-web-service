@@ -25,7 +25,7 @@ from typing import Any
 
 import jwt
 from jwt import PyJWKClient
-from jwt.exceptions import PyJWKClientConnectionError, PyJWKSetError
+from jwt.exceptions import PyJWKClientConnectionError
 from jwt.jwks_client import PyJWKSet
 
 from app.config.settings import settings
