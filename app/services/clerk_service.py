@@ -127,7 +127,7 @@ class ClerkService:
                         await asyncio.sleep(0.5 * (attempt + 1))  # Exponential backoff
                     else:
                         logger.error(f"JWKS fetch failed after {max_retries + 1} attempts: {e}")
-                except Exception as e:
+                except Exception:
                     # For non-connection errors, fail immediately
                     raise
 
