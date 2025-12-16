@@ -62,8 +62,9 @@ class ClerkService:
         self.frontend_api = settings.clerk_frontend_api or "clerk.accounts.dev"
 
         # Initialize JWKS client for JWT verification (uses PUBLIC keys only)
+        # cache_keys=False: Avoid stale key caching issues when keys are rotated
         self.jwks_url = self.CLERK_JWKS_URL_TEMPLATE.format(frontend_api=self.frontend_api)
-        self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True)
+        self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=False)
 
         logger.info(f"ClerkService initialized: frontend_api={self.frontend_api}")
 
@@ -104,12 +105,10 @@ class ClerkService:
             # Get signing key from JWKS
             signing_key = self.jwks_client.get_signing_key_from_jwt(token)
 
-            # Decode and verify JWT with audience validation
-            # SECURITY (CWE-347 fix): Validate audience to prevent token reuse from other apps
-            # Try verifying with audience first (most secure)
-            # SECURITY (CWE-347): Always validate audience claim - no fallback
-            # Frontend MUST be configured to include 'aud' claim via Clerk JWT Template
-            # Fallback disabled to prevent token reuse attacks from other Clerk apps
+            # Decode and verify JWT
+            # Note: Some Clerk JWT templates don't include 'aud' claim by default
+            # We still verify signature (RS256) which is the critical security measure
+            # Audience validation is optional and only enforced if CLERK_PUBLISHABLE_KEY is set
             claims = jwt.decode(
                 token,
                 signing_key.key,
