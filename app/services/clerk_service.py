@@ -116,7 +116,9 @@ class ClerkService:
                     break
                 except Exception as e:
                     if attempt < max_retries and "SSL" in str(e):
-                        logger.warning(f"JWKS fetch attempt {attempt + 1} failed with SSL error, retrying: {e}")
+                        logger.warning(
+                            f"JWKS fetch attempt {attempt + 1} failed with SSL error, retrying: {e}"
+                        )
                         await asyncio.sleep(0.5)  # Brief delay before retry
                     else:
                         raise
