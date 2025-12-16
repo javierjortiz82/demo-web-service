@@ -24,6 +24,7 @@ from typing import Any
 
 import jwt
 from jwt import PyJWKClient
+from jwt.exceptions import PyJWKClientConnectionError
 
 from app.config.settings import settings
 from app.db.connection import get_db
@@ -111,23 +112,28 @@ class ClerkService:
         try:
             logger.info("Verifying Clerk token")
 
-            # Get signing key from JWKS with retry logic for transient errors
+            # Get signing key from JWKS with retry logic for network errors
             signing_key = None
             max_retries = 2
+            last_error = None
             for attempt in range(max_retries + 1):
                 try:
                     signing_key = self.jwks_client.get_signing_key_from_jwt(token)
                     break
-                except Exception as e:
-                    if attempt < max_retries and "SSL" in str(e):
-                        logger.warning(
-                            f"JWKS fetch attempt {attempt + 1} failed with SSL error, retrying: {e}"
-                        )
-                        await asyncio.sleep(0.5)  # Brief delay before retry
+                except PyJWKClientConnectionError as e:
+                    last_error = e
+                    if attempt < max_retries:
+                        logger.warning(f"JWKS fetch attempt {attempt + 1} failed, retrying: {e}")
+                        await asyncio.sleep(0.5 * (attempt + 1))  # Exponential backoff
                     else:
-                        raise
+                        logger.error(f"JWKS fetch failed after {max_retries + 1} attempts: {e}")
+                except Exception as e:
+                    # For non-connection errors, fail immediately
+                    raise
 
             if signing_key is None:
+                if last_error:
+                    return None, f"Failed to fetch signing key: {str(last_error)}"
                 return None, "Failed to fetch signing key from JWKS"
 
             # Decode and verify JWT
