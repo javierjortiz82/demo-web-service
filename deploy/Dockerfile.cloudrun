@@ -1,0 +1,112 @@
+# =============================================================================
+# Dockerfile for Cloud Run Deployment
+# =============================================================================
+# Multi-stage build optimized for Google Cloud Run.
+#
+# Best Practices Applied:
+#   - Multi-stage build for minimal image size
+#   - Non-root user for security
+#   - Pinned base image versions
+#   - Health check endpoint
+#   - Proper signal handling with exec
+#
+# Build: docker build -f deploy/Dockerfile.cloudrun -t demo-agent .
+# Test:  docker run -p 8080:8080 -e PORT=8080 demo-agent
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Builder
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim-bookworm AS builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better cache utilization
+COPY requirements.txt .
+
+# Install Python dependencies to a separate directory
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# -----------------------------------------------------------------------------
+# Stage 2: Runtime
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim-bookworm
+
+# Metadata
+LABEL maintainer="NexusIntelligent <dev@nexusintelligent.ai>" \
+      org.opencontainers.image.source="https://github.com/javierjortiz82/demo-web-service" \
+      org.opencontainers.image.description="Demo Agent API - Gemini 2.5 Gateway" \
+      org.opencontainers.image.version="1.0.0"
+
+WORKDIR /app
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    ca-certificates \
+    tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean \
+    && rm -rf /var/cache/apt/archives/*
+
+# Copy Python packages from builder
+COPY --from=builder /install /usr/local
+
+# Create non-root user
+RUN groupadd -r -g 1000 appgroup && \
+    useradd -r -u 1000 -g appgroup -s /sbin/nologin appuser && \
+    mkdir -p /app/logs && \
+    chown -R appuser:appgroup /app
+
+# Copy application code
+COPY --chown=appuser:appgroup app /app/app
+COPY --chown=appuser:appgroup __main__.py /app/
+COPY --chown=appuser:appgroup prompts /app/prompts
+
+# Environment variables
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONFAULTHANDLER=1 \
+    # Cloud Run injects PORT
+    PORT=8080 \
+    # Gunicorn settings
+    GUNICORN_WORKERS=1 \
+    GUNICORN_THREADS=8 \
+    GUNICORN_TIMEOUT=300
+
+# Switch to non-root user
+USER appuser
+
+# Expose port (documentation)
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=15s \
+    CMD curl -sf http://localhost:${PORT}/health || exit 1
+
+# Use tini as init system for proper signal handling
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Run with gunicorn (Cloud Run handles scaling)
+CMD exec gunicorn app.main:app \
+    --bind "0.0.0.0:${PORT}" \
+    --workers "${GUNICORN_WORKERS}" \
+    --threads "${GUNICORN_THREADS}" \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --timeout "${GUNICORN_TIMEOUT}" \
+    --keep-alive 30 \
+    --max-requests 1000 \
+    --max-requests-jitter 100 \
+    --graceful-timeout 30 \
+    --access-logfile - \
+    --error-logfile - \
+    --capture-output \
+    --enable-stdio-inheritance

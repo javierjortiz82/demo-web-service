@@ -1,4 +1,5 @@
-.PHONY: help install test lint format type-check security-check build run clean docs fix-perms
+.PHONY: help install test lint format type-check security-check build run clean docs fix-perms \
+        gcp-setup gcp-deploy gcp-logs gcp-describe
 
 help:
 	@echo "Demo Agent Service - Available commands:"
@@ -16,13 +17,19 @@ help:
 	@echo "  make security-check   Run bandit security scanner"
 	@echo "  make quality          Run all quality checks"
 	@echo ""
-	@echo "Docker:"
+	@echo "Docker (Local):"
 	@echo "  make build            Build Docker image"
 	@echo "  make docker-up        Start Docker containers"
 	@echo "  make docker-down      Stop Docker containers"
 	@echo "  make docker-logs      Show Docker logs"
 	@echo "  make docker-restart   Restart Docker containers"
 	@echo "  make fix-perms        Fix file permissions for Docker volumes"
+	@echo ""
+	@echo "GCP Deployment:"
+	@echo "  make gcp-setup        Initial GCP infrastructure setup (run once)"
+	@echo "  make gcp-deploy       Manual deploy to Cloud Run"
+	@echo "  make gcp-logs         View Cloud Run logs"
+	@echo "  make gcp-describe     Show Cloud Run service details"
 	@echo ""
 	@echo "Cleaning:"
 	@echo "  make clean            Clean temporary files"
@@ -92,5 +99,29 @@ clean:
 clean-docker:
 	docker compose down -v
 	docker image rm demo-agent:latest 2>/dev/null || true
+
+# =============================================================================
+# GCP Deployment Commands
+# =============================================================================
+GCP_PROJECT := gen-lang-client-0329024102
+GCP_REGION := us-central1
+GCP_SERVICE := demo-agent
+
+gcp-setup:
+	@echo "Running GCP initial setup..."
+	./deploy/setup-gcp.sh
+
+gcp-deploy:
+	@echo "Deploying to Cloud Run..."
+	./deploy/deploy-manual.sh
+
+gcp-logs:
+	gcloud run services logs read $(GCP_SERVICE) --region=$(GCP_REGION) --limit=100
+
+gcp-describe:
+	gcloud run services describe $(GCP_SERVICE) --region=$(GCP_REGION)
+
+gcp-url:
+	@gcloud run services describe $(GCP_SERVICE) --region=$(GCP_REGION) --format='value(status.url)'
 
 .DEFAULT_GOAL := help

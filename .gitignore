@@ -51,3 +51,4 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+deploy/.gcp-setup-output.txt
