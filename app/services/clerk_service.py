@@ -21,7 +21,7 @@ import asyncio
 import json
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 import jwt
 from jwt import PyJWKClient
@@ -81,13 +81,13 @@ class ClerkService:
             self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True)
 
         # Initialize JWKS in-memory cache
-        self._jwks_cache: Optional[Dict[str, Any]] = None
-        self._jwks_cache_expiry: Optional[datetime] = None
+        self._jwks_cache: dict[str, Any] | None = None
+        self._jwks_cache_expiry: datetime | None = None
         self._jwks_fetch_lock = asyncio.Lock()
 
     async def _get_signing_key_from_jwt_with_cache(
         self, token: str, force_refresh: bool = False
-    ) -> tuple[Any, Optional[str]]:
+    ) -> tuple[Any, str | None]:
         """Get signing key from JWT with in-memory cache.
 
         Uses local cache to reduce JWKS endpoint calls.
