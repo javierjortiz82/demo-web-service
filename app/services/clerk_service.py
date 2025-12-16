@@ -25,7 +25,8 @@ from typing import Any
 
 import jwt
 from jwt import PyJWKClient
-from jwt.exceptions import PyJWKClientConnectionError
+from jwt.exceptions import PyJWKClientConnectionError, PyJWKSetError
+from jwt.jwks_client import PyJWKSet
 
 from app.config.settings import settings
 from app.db.connection import get_db
@@ -83,7 +84,7 @@ class ClerkService:
             self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True, timeout=15)
 
         # Initialize JWKS in-memory cache
-        self._jwks_cache: dict[str, Any] | None = None
+        self._jwks_cache: PyJWKSet | None = None
         self._jwks_cache_expiry: datetime | None = None
         self._jwks_fetch_lock = asyncio.Lock()
 
