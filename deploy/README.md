@@ -5,25 +5,27 @@ This guide explains how to deploy the Demo Agent service to Google Cloud Run.
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Google Cloud                              │
-│                                                                  │
-│  ┌──────────┐     ┌──────────────┐     ┌───────────────────┐   │
-│  │ Cloud    │────▶│  Cloud Run   │────▶│    Vertex AI      │   │
-│  │ Load     │     │ (demo-agent) │     │  (Gemini 2.5)     │   │
-│  │ Balancer │     └──────────────┘     └───────────────────┘   │
-│  └──────────┘            │                                      │
-│       │                  │                                      │
-│       │            ┌─────▼────────┐                            │
-│       │            │  Cloud SQL   │                            │
-│       │            │ (PostgreSQL) │                            │
-│       │            └──────────────┘                            │
-│       │                                                        │
-│  ┌────▼─────┐     ┌──────────────┐                            │
-│  │ Secret   │     │  Artifact    │                            │
-│  │ Manager  │     │  Registry    │                            │
-│  └──────────┘     └──────────────┘                            │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        Google Cloud                                    │
+│                                                                        │
+│  ┌─────────────┐     ┌──────────────┐     ┌───────────────────┐      │
+│  │ API Gateway │────▶│  Cloud Run   │────▶│    Vertex AI      │      │
+│  │  (public)   │     │ (demo-agent) │     │  (Gemini 2.5)     │      │
+│  └─────────────┘     └──────────────┘     └───────────────────┘      │
+│        │                    │                                         │
+│        │              ┌─────▼────────┐                               │
+│        │              │  Cloud SQL   │                               │
+│        │              │ (PostgreSQL) │                               │
+│        │              └──────────────┘                               │
+│        │                                                              │
+│   ┌────▼─────┐      ┌──────────────┐      ┌──────────────┐          │
+│   │ Secret   │      │  Artifact    │      │ Workload ID  │          │
+│   │ Manager  │      │  Registry    │      │ Federation   │          │
+│   └──────────┘      └──────────────┘      └──────────────┘          │
+└──────────────────────────────────────────────────────────────────────┘
+
+Note: Due to organization IAM policies, public access is provided via
+API Gateway instead of direct Cloud Run --allow-unauthenticated.
 ```
 
 ## Prerequisites
@@ -71,10 +73,12 @@ make gcp-deploy
 ### GCP Project Info
 | Setting | Value |
 |---------|-------|
-| Project ID | `gen-lang-client-0997131817` |
+| Project ID | `gen-lang-client-0329024102` |
 | Region | `us-central1` |
 | Service Name | `demo-agent` |
-| Custom Domain | `api.nexusintelligent.ai` |
+| API Gateway URL | `https://demo-agent-gateway-vq1gs9i.uc.gateway.dev` |
+| Custom Domain | `api.nexusintelligent.ai` (requires DNS setup) |
+| Load Balancer IP | `34.54.168.237` |
 
 ### Cloud SQL
 | Setting | Value |
@@ -87,7 +91,8 @@ make gcp-deploy
 ### Secrets (Secret Manager)
 | Secret Name | Description |
 |-------------|-------------|
-| `db-password` | Database password |
+| `database-url` | Complete DATABASE_URL with password |
+| `db-password` | Database password (legacy) |
 | `clerk-secret-key` | Clerk backend API key |
 | `clerk-publishable-key` | Clerk frontend key |
 | `clerk-webhook-secret` | Clerk webhook verification |
@@ -143,17 +148,28 @@ echo -n "whsec_YOUR_ACTUAL_SECRET" | \
 
 ## Custom Domain Setup
 
-1. **Map domain in Cloud Run**:
-   ```bash
-   gcloud run domain-mappings create \
-     --service=demo-agent \
-     --domain=api.nexusintelligent.ai \
-     --region=us-central1
+Due to organization IAM policies, custom domain setup uses Load Balancer:
+
+1. **Configure DNS** to point to the Load Balancer IP:
+   ```
+   api.nexusintelligent.ai.  A  34.54.168.237
    ```
 
-2. **Configure DNS** with the records provided by GCP
+2. **Wait for SSL certificate provisioning** (automatic once DNS is configured):
+   ```bash
+   gcloud compute ssl-certificates describe demo-agent-cert \
+     --global --format="yaml(managed.domainStatus)"
+   ```
 
-3. **Wait for SSL certificate** (automatic, ~15 minutes)
+3. **Verify access** via custom domain:
+   ```bash
+   curl https://api.nexusintelligent.ai/health
+   ```
+
+**Alternative: API Gateway URL** (works immediately):
+```
+https://demo-agent-gateway-vq1gs9i.uc.gateway.dev
+```
 
 ## Monitoring
 

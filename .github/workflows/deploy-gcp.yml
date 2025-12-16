@@ -202,12 +202,13 @@ jobs:
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
           echo "Deploying image: ${IMAGE}"
 
+          # Note: --allow-unauthenticated removed due to org policy restrictions
+          # Public access is provided via API Gateway instead
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image=${IMAGE} \
             --region=${{ env.REGION }} \
             --platform=managed \
             --service-account=${{ secrets.GCP_SA_EMAIL }} \
-            --allow-unauthenticated \
             --port=8080 \
             --memory=1Gi \
             --cpu=1 \
@@ -218,25 +219,26 @@ jobs:
             --cpu-throttling \
             --add-cloudsql-instances=${{ secrets.CLOUD_SQL_CONNECTION }} \
             --set-env-vars="^||^GCP_PROJECT_ID=${{ env.PROJECT_ID }}||GCP_LOCATION=${{ env.REGION }}||MODEL=gemini-2.5-flash||ENABLE_CLERK_AUTH=true||CLERK_FRONTEND_API=clerk.www.nexusintelligent.ai||CORS_ALLOW_ORIGINS=https://www.nexusintelligent.ai||CORS_ALLOW_CREDENTIALS=true||LOG_JSON_FORMAT=true||LOG_LEVEL=INFO||DEMO_MAX_TOKENS=5000||SCHEMA_NAME=production" \
-            --set-env-vars="DATABASE_URL=postgresql://demo_user:\${DB_PASSWORD}@/demodb?host=/cloudsql/${{ secrets.CLOUD_SQL_CONNECTION }}" \
-            --set-secrets="DB_PASSWORD=db-password:latest,CLERK_SECRET_KEY=clerk-secret-key:latest,CLERK_PUBLISHABLE_KEY=clerk-publishable-key:latest" \
+            --set-secrets="DATABASE_URL=database-url:latest,CLERK_SECRET_KEY=clerk-secret-key:latest,CLERK_PUBLISHABLE_KEY=clerk-publishable-key:latest" \
             --quiet
 
-          # Get service URL
+          # Get service URL (internal, use API Gateway for public access)
           URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region=${{ env.REGION }} \
             --format='value(status.url)')
           echo "url=${URL}" >> $GITHUB_OUTPUT
+          echo "gateway_url=https://demo-agent-gateway-vq1gs9i.uc.gateway.dev" >> $GITHUB_OUTPUT
 
       - name: Verify deployment
         run: |
-          URL="${{ steps.deploy.outputs.url }}"
-          echo "Service URL: ${URL}"
+          GATEWAY_URL="${{ steps.deploy.outputs.gateway_url }}"
+          echo "API Gateway URL: ${GATEWAY_URL}"
+          echo "Cloud Run URL (internal): ${{ steps.deploy.outputs.url }}"
 
-          # Wait for service to be ready
+          # Wait for service to be ready via API Gateway
           echo "Waiting for service to be ready..."
           for i in {1..12}; do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${URL}/health" || echo "000")
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/health" || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "Health check passed (HTTP $HTTP_CODE)"
               exit 0
@@ -271,7 +273,8 @@ jobs:
             echo "| Service | \`${{ env.SERVICE_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "| Region | \`${{ env.REGION }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "| Image | \`${{ needs.build.outputs.image }}\` |" >> $GITHUB_STEP_SUMMARY
-            echo "| URL | ${{ needs.deploy.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| API Gateway (public) | https://demo-agent-gateway-vq1gs9i.uc.gateway.dev |" >> $GITHUB_STEP_SUMMARY
+            echo "| Cloud Run (internal) | ${{ needs.deploy.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
             echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
           else
             echo "### Status: Deployment Failed" >> $GITHUB_STEP_SUMMARY

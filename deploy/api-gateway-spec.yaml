@@ -1,0 +1,63 @@
+# OpenAPI spec for API Gateway to Cloud Run
+swagger: '2.0'
+info:
+  title: Demo Agent API Gateway
+  description: API Gateway for Demo Agent Cloud Run service
+  version: '1.0.0'
+host: demo-agent-69054835734.us-central1.run.app
+schemes:
+  - https
+produces:
+  - application/json
+x-google-backend:
+  address: https://demo-agent-69054835734.us-central1.run.app
+  protocol: h2
+  jwt_audience: https://demo-agent-69054835734.us-central1.run.app
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: health
+      responses:
+        '200':
+          description: OK
+  /:
+    get:
+      summary: Root info
+      operationId: root
+      responses:
+        '200':
+          description: OK
+  /v1/demo:
+    post:
+      summary: Demo agent query
+      operationId: demoQuery
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+      responses:
+        '200':
+          description: OK
+    options:
+      summary: CORS preflight
+      operationId: demoCors
+      responses:
+        '200':
+          description: OK
+  /v1/demo/status:
+    get:
+      summary: Get quota status
+      operationId: demoStatus
+      responses:
+        '200':
+          description: OK
+  /v1/demo/history:
+    get:
+      summary: Get chat history
+      operationId: demoHistory
+      responses:
+        '200':
+          description: OK
