@@ -102,9 +102,7 @@ def create_app() -> FastAPI:
     # If credentials are enabled, don't allow wildcard or too many origins
     allow_credentials = settings.cors_allow_credentials
     if allow_credentials and len(cors_origins) > 5:
-        logger.warning(
-            "CORS: Many origins with credentials enabled - consider restricting origins"
-        )
+        logger.warning("CORS: Many origins with credentials enabled - consider restricting origins")
 
     app.add_middleware(
         CORSMiddleware,

@@ -270,9 +270,7 @@ class Settings(BaseSettings):
         # Access other field values through info.data
         min_size = info.data.get("db_pool_min_size", 5)
         if v < min_size:
-            raise ValueError(
-                f"db_pool_max_size ({v}) must be >= db_pool_min_size ({min_size})"
-            )
+            raise ValueError(f"db_pool_max_size ({v}) must be >= db_pool_min_size ({min_size})")
         return v
 
     @field_validator("database_url", mode="after")
@@ -280,9 +278,7 @@ class Settings(BaseSettings):
     def validate_database_url(cls, v: str) -> str:
         """Validate database_url is provided."""
         if not v or not v.strip():
-            raise ValueError(
-                "DATABASE_URL is required. Set it in your .env file or environment."
-            )
+            raise ValueError("DATABASE_URL is required. Set it in your .env file or environment.")
         return v
 
 

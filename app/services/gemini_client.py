@@ -81,8 +81,7 @@ class GeminiClient:
         max_workers = settings.max_concurrent_requests
         if GeminiClient._executor is None:
             GeminiClient._executor = ThreadPoolExecutor(
-                max_workers=max_workers,
-                thread_name_prefix="gemini_api_"
+                max_workers=max_workers, thread_name_prefix="gemini_api_"
             )
             GeminiClient._max_workers = max_workers
             logger.info(
