@@ -68,9 +68,13 @@ class ClerkService:
             # Use cache_keys=True with fetch_on_init=False to lazy-load JWKS
             # This avoids connection issues during initialization
             self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True)
-            logger.info(f"ClerkService initialized: frontend_api={self.frontend_api}, jwks_url={self.jwks_url}")
+            logger.info(
+                f"ClerkService initialized: frontend_api={self.frontend_api}, jwks_url={self.jwks_url}"
+            )
         except Exception as e:
-            logger.warning(f"Failed to initialize JWKS client during init: {e}, will retry during token verification")
+            logger.warning(
+                f"Failed to initialize JWKS client during init: {e}, will retry during token verification"
+            )
             self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True)
 
     async def verify_token(self, token: str) -> tuple[dict[str, Any] | None, str | None]:
