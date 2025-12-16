@@ -58,6 +58,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.user_service = get_user_service()
         logger.info("Demo Agent initialized")
 
+        # Preload JWKS for Clerk authentication (reduces startup latency on first token)
+        clerk_service = app.state.demo_agent.clerk_service
+        await clerk_service.preload_jwks()
+
     except Exception as e:
         logger.exception(f"Failed to initialize: {e}")
         raise RuntimeError(f"Startup failed: {e}") from e

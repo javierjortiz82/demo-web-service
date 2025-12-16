@@ -68,22 +68,72 @@ class ClerkService:
         # Initialize JWKS client for JWT verification (uses PUBLIC keys only)
         self.jwks_url = self.CLERK_JWKS_URL_TEMPLATE.format(frontend_api=self.frontend_api)
         try:
-            # Use cache_keys=True with fetch_on_init=False to lazy-load JWKS
+            # Use cache_keys=True and timeout=15s for better resilience
             # This avoids connection issues during initialization
-            self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True)
+            self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True, timeout=15)
             logger.info(
-                f"ClerkService initialized: frontend_api={self.frontend_api}, jwks_url={self.jwks_url}"
+                f"ClerkService initialized: frontend_api={self.frontend_api}, "
+                f"jwks_url={self.jwks_url}, timeout=15s"
             )
         except Exception as e:
             logger.warning(
-                f"Failed to initialize JWKS client during init: {e}, will retry during token verification"
+                f"Failed to initialize JWKS client during init: {e}, "
+                f"will retry during token verification"
             )
-            self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True)
+            self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True, timeout=15)
 
         # Initialize JWKS in-memory cache
         self._jwks_cache: dict[str, Any] | None = None
         self._jwks_cache_expiry: datetime | None = None
         self._jwks_fetch_lock = asyncio.Lock()
+
+    async def preload_jwks(self) -> None:
+        """Preload JWKS at application startup.
+
+        Fetches and caches JWKS once during startup instead of on first token verify.
+        This eliminates the need for external network calls on every verification.
+
+        Returns:
+            None
+
+        Raises:
+            Logs errors but does not raise - token verification will retry if needed.
+        """
+        try:
+            logger.info("Preloading JWKS at startup...")
+            # Fetch JWKS with retries
+            max_retries = 3
+            for attempt in range(max_retries + 1):
+                try:
+                    self._jwks_cache = self.jwks_client.get_jwk_set()
+                    self._jwks_cache_expiry = datetime.now() + timedelta(
+                        seconds=self.JWKS_CACHE_TTL_SECONDS
+                    )
+                    logger.info(
+                        f"✅ JWKS preloaded successfully at startup. "
+                        f"Cache valid for {self.JWKS_CACHE_TTL_SECONDS}s"
+                    )
+                    return
+                except PyJWKClientConnectionError as e:
+                    if attempt < max_retries:
+                        wait_time = 0.5 * (attempt + 1)
+                        logger.warning(
+                            f"JWKS preload attempt {attempt + 1} failed, "
+                            f"retrying in {wait_time}s: {e}"
+                        )
+                        await asyncio.sleep(wait_time)
+                    else:
+                        logger.error(
+                            f"JWKS preload failed after {max_retries + 1} attempts. "
+                            f"Token verification will retry on demand: {e}"
+                        )
+                except Exception as e:
+                    logger.error(f"Unexpected error preloading JWKS: {e}")
+                    raise
+
+        except Exception as e:
+            logger.exception(f"Error preloading JWKS at startup: {e}")
+            # Don't raise - let service start anyway, will retry during token verify
 
     async def _get_signing_key_from_jwt_with_cache(
         self, token: str, force_refresh: bool = False
