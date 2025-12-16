@@ -17,13 +17,13 @@ Created: 2025-11-03
 Version: 2.0.0 (Simplified)
 """
 
+import asyncio
 import json
 import time
 from typing import Any
 
 import jwt
 from jwt import PyJWKClient
-import asyncio
 
 from app.config.settings import settings
 from app.db.connection import get_db
