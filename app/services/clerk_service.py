@@ -23,6 +23,7 @@ from typing import Any
 
 import jwt
 from jwt import PyJWKClient
+import asyncio
 
 from app.config.settings import settings
 from app.db.connection import get_db
@@ -62,11 +63,15 @@ class ClerkService:
         self.frontend_api = settings.clerk_frontend_api or "clerk.accounts.dev"
 
         # Initialize JWKS client for JWT verification (uses PUBLIC keys only)
-        # cache_keys=False: Avoid stale key caching issues when keys are rotated
         self.jwks_url = self.CLERK_JWKS_URL_TEMPLATE.format(frontend_api=self.frontend_api)
-        self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=False)
-
-        logger.info(f"ClerkService initialized: frontend_api={self.frontend_api}")
+        try:
+            # Use cache_keys=True with fetch_on_init=False to lazy-load JWKS
+            # This avoids connection issues during initialization
+            self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True)
+            logger.info(f"ClerkService initialized: frontend_api={self.frontend_api}, jwks_url={self.jwks_url}")
+        except Exception as e:
+            logger.warning(f"Failed to initialize JWKS client during init: {e}, will retry during token verification")
+            self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True)
 
     async def verify_token(self, token: str) -> tuple[dict[str, Any] | None, str | None]:
         """Verify Clerk JWT session token.
@@ -102,8 +107,22 @@ class ClerkService:
         try:
             logger.info("Verifying Clerk token")
 
-            # Get signing key from JWKS
-            signing_key = self.jwks_client.get_signing_key_from_jwt(token)
+            # Get signing key from JWKS with retry logic for transient errors
+            signing_key = None
+            max_retries = 2
+            for attempt in range(max_retries + 1):
+                try:
+                    signing_key = self.jwks_client.get_signing_key_from_jwt(token)
+                    break
+                except Exception as e:
+                    if attempt < max_retries and "SSL" in str(e):
+                        logger.warning(f"JWKS fetch attempt {attempt + 1} failed with SSL error, retrying: {e}")
+                        await asyncio.sleep(0.5)  # Brief delay before retry
+                    else:
+                        raise
+
+            if signing_key is None:
+                return None, "Failed to fetch signing key from JWKS"
 
             # Decode and verify JWT
             # Note: Some Clerk JWT templates don't include 'aud' claim by default
