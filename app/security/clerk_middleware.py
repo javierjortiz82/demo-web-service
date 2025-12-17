@@ -156,7 +156,15 @@ class ClerkAuthMiddleware(BaseHTTPMiddleware):
 
         if not auth_header:
             logger.warning(f"Missing Authorization header: path={path}")
-            return self._unauthorized_response("Missing Authorization header")
+            # DEBUG: Include header info in error response for troubleshooting
+            debug_headers = {
+                "x-forwarded-auth": bool(request.headers.get("X-Forwarded-Authorization")),
+                "authorization": bool(request.headers.get("Authorization")),
+                "all_keys": list(request.headers.keys()),
+            }
+            return self._unauthorized_response(
+                f"Missing Authorization header. Debug: {debug_headers}"
+            )
 
         # Validate Bearer token format
         if not auth_header.startswith("Bearer "):
@@ -177,7 +185,11 @@ class ClerkAuthMiddleware(BaseHTTPMiddleware):
 
         if error or not claims:
             logger.warning(f"Token verification failed: {error}")
-            return self._unauthorized_response(f"Authentication failed: {error}")
+            # DEBUG: Include token info (first 50 chars) for troubleshooting
+            token_preview = token[:50] if token else "empty"
+            return self._unauthorized_response(
+                f"Authentication failed: {error}. Token starts with: {token_preview}..."
+            )
 
         # Extract user info from JWT claims
         clerk_user_id = claims.get("sub")  # Clerk user ID
