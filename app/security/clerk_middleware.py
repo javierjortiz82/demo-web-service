@@ -132,6 +132,12 @@ class ClerkAuthMiddleware(BaseHTTPMiddleware):
         # and replaced with the API Gateway's service account JWT.
         # We prefer X-Forwarded-Authorization if present (contains original Clerk JWT)
 
+        # Log ALL headers for debugging (temporary)
+        all_headers = dict(request.headers)
+        # Mask sensitive values but show keys
+        safe_headers = {k: f"{v[:30]}..." if len(v) > 30 else v for k, v in all_headers.items()}
+        logger.warning(f"DEBUG ALL HEADERS: {safe_headers}")
+
         # Log all auth-related headers for debugging
         logger.info(
             f"Request headers - X-Forwarded-Authorization present: {bool(request.headers.get('X-Forwarded-Authorization'))}"
