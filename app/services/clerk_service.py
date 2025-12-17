@@ -154,8 +154,13 @@ class ClerkService:
                 logger.warning("Invalid JWT format - expected 3 parts")
                 return None
 
+            # Log first 50 chars of token for debugging
+            logger.info(f"JWT token (first 50 chars): {token[:50]}...")
+
             # Decode header (base64url)
             header_b64 = parts[0]
+            logger.info(f"JWT header base64 (raw): {header_b64}")
+
             # Add padding if needed
             padding = 4 - len(header_b64) % 4
             if padding != 4:
@@ -163,6 +168,8 @@ class ClerkService:
 
             header_json = base64.urlsafe_b64decode(header_b64)
             header = json.loads(header_json)
+
+            logger.info(f"JWT header decoded: {header}")
 
             kid: str | None = header.get("kid")
             logger.info(f"Extracted kid from JWT header: {kid}")
