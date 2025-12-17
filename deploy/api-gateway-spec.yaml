@@ -4,15 +4,19 @@ info:
   title: Demo Agent API Gateway
   description: API Gateway for Demo Agent Cloud Run service
   version: '1.0.0'
-host: demo-agent-69054835734.us-central1.run.app
+host: demo-agent-gateway-vq1gs9i.uc.gateway.dev
 schemes:
   - https
 produces:
   - application/json
 x-google-backend:
-  address: https://demo-agent-69054835734.us-central1.run.app
+  address: https://demo-agent-4k3haexkga-uc.a.run.app
   protocol: h2
-  jwt_audience: https://demo-agent-69054835734.us-central1.run.app
+  # No jwt_audience - pass original Authorization header to Cloud Run
+  # Cloud Run handles Clerk JWT validation internally
+  path_translation: APPEND_PATH_TO_ADDRESS
+securityDefinitions: {}
+security: []
 paths:
   /health:
     get:

@@ -127,7 +127,17 @@ class ClerkAuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Extract Authorization header
-        auth_header = request.headers.get("Authorization")
+        # NOTE: When using Google Cloud API Gateway with backend authentication,
+        # the original Authorization header is moved to X-Forwarded-Authorization
+        # and replaced with the API Gateway's service account JWT.
+        # We prefer X-Forwarded-Authorization if present (contains original Clerk JWT)
+        auth_header = request.headers.get("X-Forwarded-Authorization")
+        if auth_header:
+            logger.debug("Using X-Forwarded-Authorization header (from API Gateway)")
+        else:
+            auth_header = request.headers.get("Authorization")
+            if auth_header:
+                logger.debug("Using Authorization header (direct access)")
 
         if not auth_header:
             logger.warning(f"Missing Authorization header: path={path}")
