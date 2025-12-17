@@ -18,6 +18,7 @@ Version: 2.0.0 (Simplified)
 """
 
 import asyncio
+import base64
 import json
 import time
 from typing import Any
@@ -137,28 +138,71 @@ class ClerkService:
             logger.exception(f"Error warming up JWKS at startup: {e}")
             # Don't raise - let service start anyway, will retry during token verify
 
+    def _extract_kid_from_jwt(self, token: str) -> str | None:
+        """Extract the 'kid' (Key ID) from JWT header without verification.
+
+        Args:
+            token: JWT token string
+
+        Returns:
+            Key ID string or None if not found
+        """
+        try:
+            # JWT format: header.payload.signature
+            parts = token.split(".")
+            if len(parts) != 3:
+                logger.warning("Invalid JWT format - expected 3 parts")
+                return None
+
+            # Decode header (base64url)
+            header_b64 = parts[0]
+            # Add padding if needed
+            padding = 4 - len(header_b64) % 4
+            if padding != 4:
+                header_b64 += "=" * padding
+
+            header_json = base64.urlsafe_b64decode(header_b64)
+            header = json.loads(header_json)
+
+            kid: str | None = header.get("kid")
+            logger.debug(f"Extracted kid from JWT header: {kid}")
+            return kid
+
+        except Exception as e:
+            logger.warning(f"Failed to extract kid from JWT: {e}")
+            return None
+
     async def _get_signing_key_from_jwt_with_cache(
         self, token: str, force_refresh: bool = False
     ) -> tuple[Any, str | None]:
-        """Get signing key from JWT using PyJWKClient's internal cache.
+        """Get signing key from JWT by manually matching 'kid' from JWKS.
 
-        PyJWKClient already has cache_keys=True enabled, so we rely on its
-        internal caching mechanism. This method adds retry logic for resilience.
+        IMPORTANT: This method manually extracts the 'kid' from JWT header and
+        matches it against JWKS keys. This bypasses PyJWKClient's internal
+        get_signing_key_from_jwt() method which can fail due to thumbprint
+        mismatches in certain PyJWT versions.
 
         Returns:
             Tuple[signing_key | None, error_message | None]
         """
         try:
-            # Use PyJWKClient's internal cache (cache_keys=True)
-            # Add retry logic for network errors
+            # Extract kid from JWT header
+            kid = self._extract_kid_from_jwt(token)
+            if not kid:
+                return None, "Could not extract 'kid' from JWT header"
+
+            logger.debug(f"Looking for signing key with kid={kid}")
+
+            # Fetch JWKS with retry logic
             max_retries = 2
             last_error = None
+            jwks = None
 
             for attempt in range(max_retries + 1):
                 try:
-                    signing_key = self.jwks_client.get_signing_key_from_jwt(token)
-                    logger.debug("Signing key retrieved successfully")
-                    return signing_key, None
+                    jwks = self.jwks_client.get_jwk_set()
+                    logger.debug(f"Fetched JWKS with {len(jwks.keys)} keys")
+                    break
                 except PyJWKClientConnectionError as e:
                     last_error = e
                     if attempt < max_retries:
@@ -170,9 +214,23 @@ class ClerkService:
                     else:
                         logger.error(f"JWKS fetch failed after {max_retries + 1} attempts: {e}")
 
-            if last_error:
-                return None, f"Failed to fetch signing key: {str(last_error)}"
-            return None, "Failed to fetch signing key from JWKS"
+            if jwks is None:
+                if last_error:
+                    return None, f"Failed to fetch JWKS: {str(last_error)}"
+                return None, "Failed to fetch JWKS"
+
+            # Find key by kid manually
+            for key in jwks.keys:
+                key_kid = key.key_id if hasattr(key, "key_id") else None
+                logger.debug(f"Checking key: kid={key_kid}")
+                if key_kid == kid:
+                    logger.info(f"Found matching signing key for kid={kid}")
+                    return key, None
+
+            # Log available keys for debugging
+            available_kids = [k.key_id if hasattr(k, "key_id") else "unknown" for k in jwks.keys]
+            logger.error(f"No matching key found for kid={kid}. Available kids: {available_kids}")
+            return None, f"No signing key found for kid={kid}"
 
         except Exception as e:
             logger.exception(f"Error getting signing key: {e}")
