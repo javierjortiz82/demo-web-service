@@ -17,6 +17,7 @@ from app.models.responses import TokenWarning
 from app.rate_limiter.token_bucket import TokenBucket
 from app.security.fingerprint import FingerprintAnalyzer
 from app.security.ip_limiter import IPLimiter
+from app.services.clerk_service import get_clerk_service
 from app.services.gemini_client import GeminiClient
 from app.services.prompt_manager import PromptManager
 from app.utils.logging import get_logger
@@ -35,6 +36,7 @@ class DemoAgent:
         self.db = get_db()
         self.fingerprint_analyzer = FingerprintAnalyzer()
         self.ip_limiter = IPLimiter()
+        self.clerk_service = get_clerk_service()
         logger.info("DemoAgent initialized")
 
     async def process_query(
