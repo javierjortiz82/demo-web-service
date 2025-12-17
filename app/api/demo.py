@@ -384,7 +384,9 @@ async def demo_status(
             debug_info = {
                 "has_state_user": has_state_user,
                 "is_authenticated": str(is_auth),
-                "user_info": str(authenticated_user)[:100] if authenticated_user else None,
+                "db_user_id": authenticated_user.get("db_user_id") if authenticated_user else None,
+                "clerk_user_id": authenticated_user.get("clerk_user_id") if authenticated_user else None,
+                "email": authenticated_user.get("email") if authenticated_user else None,
             }
             return JSONResponse(
                 status_code=401,
