@@ -67,19 +67,24 @@ class ClerkService:
         # Initialize JWKS client for JWT verification (uses PUBLIC keys only)
         self.jwks_url = self.CLERK_JWKS_URL_TEMPLATE.format(frontend_api=self.frontend_api)
         try:
-            # Use cache_keys=True and timeout=15s for better resilience
-            # This avoids connection issues during initialization
-            self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True, timeout=15)
+            # IMPORTANT: cache_keys=False to avoid key ID mismatch issues
+            # PyJWKClient with cache_keys=True can use internal thumbprints instead of kid
+            # This causes "Unable to find a signing key" errors when kid doesn't match
+            self.jwks_client = PyJWKClient(
+                self.jwks_url,
+                cache_keys=False,  # Disable cache to ensure fresh key lookup
+                timeout=15,
+            )
             logger.info(
                 f"ClerkService initialized: frontend_api={self.frontend_api}, "
-                f"jwks_url={self.jwks_url}, timeout=15s"
+                f"jwks_url={self.jwks_url}, timeout=15s, cache=disabled"
             )
         except Exception as e:
             logger.warning(
                 f"Failed to initialize JWKS client during init: {e}, "
                 f"will retry during token verification"
             )
-            self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=True, timeout=15)
+            self.jwks_client = PyJWKClient(self.jwks_url, cache_keys=False, timeout=15)
 
         # Lock for thread-safe JWKS operations
         self._jwks_fetch_lock = asyncio.Lock()
