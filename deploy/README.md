@@ -87,6 +87,13 @@ make gcp-deploy
 | Database | `demodb` |
 | User | `demo_user` |
 | Version | PostgreSQL 15 |
+| Schema | `test` |
+
+### Clerk JWT
+| Setting | Value |
+|---------|-------|
+| JWT Template | `odiseo-api` |
+| Required Claims | `email`, `name` |
 
 ### Secrets (Secret Manager)
 | Secret Name | Description |

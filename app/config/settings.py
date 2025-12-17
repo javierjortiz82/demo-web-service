@@ -281,6 +281,39 @@ class Settings(BaseSettings):
             raise ValueError("DATABASE_URL is required. Set it in your .env file or environment.")
         return v
 
+    @field_validator("schema_name", mode="after")
+    @classmethod
+    def validate_schema_name(cls, v: str) -> str:
+        """Validate schema_name to prevent SQL injection.
+
+        SECURITY (CWE-89): Schema name is used in SQL queries via f-string
+        formatting. We must ensure it only contains safe characters.
+
+        Allowed: lowercase letters, numbers, underscores (PostgreSQL identifiers)
+        """
+        import re
+
+        if not v:
+            return "public"  # Safe default
+
+        # PostgreSQL identifier rules: start with letter/underscore, alphanumeric/underscore
+        if not re.match(r"^[a-z_][a-z0-9_]*$", v.lower()):
+            raise ValueError(
+                f"Invalid schema_name '{v}'. Must be a valid PostgreSQL identifier "
+                "(lowercase letters, numbers, underscores only, start with letter/underscore)."
+            )
+
+        # Additional safety: limit length and block known dangerous patterns
+        if len(v) > 63:  # PostgreSQL max identifier length
+            raise ValueError("schema_name must be 63 characters or less")
+
+        # Block SQL keywords that could be used for injection
+        dangerous_keywords = {"select", "insert", "update", "delete", "drop", "union", "exec"}
+        if v.lower() in dangerous_keywords:
+            raise ValueError(f"schema_name cannot be a SQL keyword: {v}")
+
+        return v.lower()
+
 
 # Singleton instance
 settings = Settings()

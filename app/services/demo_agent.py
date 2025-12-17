@@ -228,6 +228,31 @@ class DemoAgent:
             error_msg = "Error processing request. Please try again later."
             return None, 0, TokenWarning(is_warning=True, message=error_msg), error_msg
 
+    @staticmethod
+    def _validate_ip_address(ip: str | None) -> str | None:
+        """Validate IP address format before database storage.
+
+        SECURITY FIX (CWE-20): Validate IP addresses before storing to prevent
+        malformed data and ensure INET type compatibility.
+
+        Args:
+            ip: IP address string to validate.
+
+        Returns:
+            Valid IP address or None if invalid.
+        """
+        if not ip:
+            return None
+        try:
+            import ipaddress
+
+            # Parse and normalize IP address
+            parsed = ipaddress.ip_address(ip.strip())
+            return str(parsed)
+        except (ValueError, AttributeError):
+            logger.warning(f"Invalid IP address format: {ip[:50] if ip else None}")
+            return None
+
     async def _log_audit(
         self,
         user_key: str | None,
@@ -250,14 +275,19 @@ class DemoAgent:
                  action_taken, user_agent, abuse_score)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
+            # SECURITY FIX: Validate IP and indicate truncation
+            validated_ip = self._validate_ip_address(ip_address)
             truncated_input = request_input[:1000] if request_input else None
+            # Add truncation indicator for forensics
+            if request_input and len(request_input) > 1000:
+                truncated_input = truncated_input[:990] + " [TRUNCATED]"
             action = "blocked" if is_blocked else "allowed"
 
             await self.db.execute(
                 query,
                 (
                     user_key,
-                    ip_address,
+                    validated_ip,  # Use validated IP
                     fingerprint,
                     truncated_input,
                     response_length,

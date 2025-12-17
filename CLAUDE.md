@@ -137,8 +137,9 @@ logger.info("Event description", user_id=123, action="login")
 Required variables:
 - `DATABASE_URL` - PostgreSQL connection string
 - `GCP_PROJECT_ID` - Google Cloud project ID
-- `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account JSON
-- `CLERK_FRONTEND_API` - Clerk instance domain (e.g., `my-app.clerk.accounts.dev`)
+- `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account JSON (local dev only)
+- `CLERK_FRONTEND_API` - Clerk instance domain (e.g., `mighty-leopard-52.clerk.accounts.dev`)
+- `SCHEMA_NAME` - PostgreSQL schema name (`test` for Cloud SQL, `public` for local Docker)
 
 Key optional variables:
 - `ENABLE_CLERK_AUTH=true` - Toggle auth (false for local dev)
@@ -147,6 +148,43 @@ Key optional variables:
 - `MAX_CONCURRENT_REQUESTS=10` - Concurrent Gemini calls per worker
 
 See `.env.example` for full documentation of all variables.
+
+## Deployment
+
+### Production (Google Cloud)
+
+| Component | Value |
+|-----------|-------|
+| **API Gateway** | `https://demo-agent-gateway-vq1gs9i.uc.gateway.dev` |
+| **Cloud Run** | `demo-agent` in `us-central1` |
+| **Cloud SQL** | `demo-db` (PostgreSQL 15) |
+| **Schema** | `test` |
+| **Clerk Frontend API** | `mighty-leopard-52.clerk.accounts.dev` |
+
+### Database Schema
+
+The schema is defined in `deploy/schema-cloud-sql.sql` with dynamic schema name support:
+
+```bash
+# Deploy with default schema (test)
+psql -U demo_user -d demodb -f deploy/schema-cloud-sql.sql
+
+# Deploy with custom schema
+psql -v schema_name='production' -U demo_user -d demodb -f deploy/schema-cloud-sql.sql
+```
+
+**IMPORTANT**: Functions use `current_schema()` with dynamic SQL to resolve table names at runtime. This ensures they work correctly regardless of the schema name.
+
+### Clerk JWT Configuration
+
+The frontend must use a custom JWT template (`odiseo-api`) that includes the `email` claim:
+
+```typescript
+// Frontend: useChat.ts, useTokenQuota.ts
+const token = await getToken({ template: 'odiseo-api' });
+```
+
+This is required for JIT (Just-In-Time) user provisioning in the database.
 
 ## Concurrency Configuration
 

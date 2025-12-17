@@ -12,8 +12,9 @@ produces:
 x-google-backend:
   address: https://demo-agent-4k3haexkga-uc.a.run.app
   protocol: h2
-  # No jwt_audience - pass original Authorization header to Cloud Run
-  # Cloud Run handles Clerk JWT validation internally
+  # jwt_audience configures service account authentication to Cloud Run
+  # The original Authorization header is moved to X-Forwarded-Authorization
+  jwt_audience: https://demo-agent-4k3haexkga-uc.a.run.app
   path_translation: APPEND_PATH_TO_ADDRESS
 securityDefinitions: {}
 security: []

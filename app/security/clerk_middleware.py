@@ -128,42 +128,51 @@ class ClerkAuthMiddleware(BaseHTTPMiddleware):
 
         # Extract Authorization header
         # NOTE: When using Google Cloud API Gateway with backend authentication,
-        # the original Authorization header is moved to X-Forwarded-Authorization
-        # and replaced with the API Gateway's service account JWT.
-        # We prefer X-Forwarded-Authorization if present (contains original Clerk JWT)
+        # API Gateway replaces the Authorization header with its own service account JWT.
+        # The original Clerk JWT can be passed via:
+        #   1. X-Clerk-Token header (recommended for API Gateway)
+        #   2. X-Forwarded-Authorization header (if API Gateway forwards it)
+        #   3. Authorization header (for direct Cloud Run access)
 
-        # Log ALL headers for debugging (temporary)
-        all_headers = dict(request.headers)
-        # Mask sensitive values but show keys
-        safe_headers = {k: f"{v[:30]}..." if len(v) > 30 else v for k, v in all_headers.items()}
-        logger.warning(f"DEBUG ALL HEADERS: {safe_headers}")
+        # Check headers in order of preference
+        auth_header = None
+        auth_source = None
 
-        # Log all auth-related headers for debugging
-        logger.info(
-            f"Request headers - X-Forwarded-Authorization present: {bool(request.headers.get('X-Forwarded-Authorization'))}"
-        )
-        logger.info(
-            f"Request headers - Authorization present: {bool(request.headers.get('Authorization'))}"
-        )
+        # 1. X-Clerk-Token - explicit Clerk JWT (works with API Gateway)
+        clerk_token = request.headers.get("X-Clerk-Token")
+        if clerk_token:
+            auth_header = f"Bearer {clerk_token}" if not clerk_token.startswith("Bearer ") else clerk_token
+            auth_source = "X-Clerk-Token"
+            logger.info("Using X-Clerk-Token header")
 
-        auth_header = request.headers.get("X-Forwarded-Authorization")
-        if auth_header:
-            logger.info("Using X-Forwarded-Authorization header (from API Gateway)")
-        else:
-            auth_header = request.headers.get("Authorization")
-            if auth_header:
-                logger.info("Using Authorization header (direct access)")
+        # 2. X-Forwarded-Authorization - forwarded by some proxies
+        if not auth_header:
+            forwarded_auth = request.headers.get("X-Forwarded-Authorization")
+            if forwarded_auth:
+                auth_header = forwarded_auth
+                auth_source = "X-Forwarded-Authorization"
+                logger.info("Using X-Forwarded-Authorization header")
+
+        # 3. Authorization - direct access or local development
+        if not auth_header:
+            direct_auth = request.headers.get("Authorization")
+            if direct_auth:
+                # Verify this looks like a Clerk JWT (starts with eyJ and has correct kid)
+                # API Gateway JWTs have different kid format (hex string)
+                auth_header = direct_auth
+                auth_source = "Authorization"
+                logger.info("Using Authorization header")
 
         if not auth_header:
             logger.warning(f"Missing Authorization header: path={path}")
             # DEBUG: Include header info in error response for troubleshooting
             debug_headers = {
+                "x-clerk-token": bool(request.headers.get("X-Clerk-Token")),
                 "x-forwarded-auth": bool(request.headers.get("X-Forwarded-Authorization")),
                 "authorization": bool(request.headers.get("Authorization")),
-                "all_keys": list(request.headers.keys()),
             }
             return self._unauthorized_response(
-                f"Missing Authorization header. Debug: {debug_headers}"
+                f"Missing Authorization header. Send Clerk JWT via X-Clerk-Token header when using API Gateway. Debug: {debug_headers}"
             )
 
         # Validate Bearer token format

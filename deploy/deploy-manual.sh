@@ -21,7 +21,7 @@ set -e
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-PROJECT_ID="gen-lang-client-0997131817"
+PROJECT_ID="gen-lang-client-0329024102"
 REGION="us-central1"
 SERVICE_NAME="demo-agent"
 REPO_NAME="demo-repo"
@@ -135,9 +135,11 @@ gcloud run deploy ${SERVICE_NAME} \
     --set-env-vars="LOG_JSON_FORMAT=true" \
     --set-env-vars="LOG_LEVEL=INFO" \
     --set-env-vars="DEMO_MAX_TOKENS=5000" \
-    --set-env-vars="DATABASE_URL=postgresql://demo_user:\${DB_PASSWORD}@/demodb?host=/cloudsql/${CLOUD_SQL_CONNECTION}" \
-    --set-secrets="DB_PASSWORD=db-password:latest" \
-    --set-secrets="CLERK_SECRET_KEY=clerk-secret-key:latest" \
+    --set-env-vars="SCHEMA_NAME=production" \
+    --set-env-vars="DB_POOL_MIN_SIZE=2" \
+    --set-env-vars="DB_POOL_MAX_SIZE=10" \
+    --set-env-vars="ENABLE_FINGERPRINT=true" \
+    --set-secrets="DATABASE_URL=database-url:latest" \
     --set-secrets="CLERK_PUBLISHABLE_KEY=clerk-publishable-key:latest" \
     --quiet
 

@@ -104,16 +104,17 @@ def create_app() -> FastAPI:
 
     # SECURITY (CWE-346): When using credentials, be explicit about origins
     # If credentials are enabled, don't allow wildcard or too many origins
+    # FIX: Lower threshold from 5 to 3 - credentials with many origins is risky
     allow_credentials = settings.cors_allow_credentials
-    if allow_credentials and len(cors_origins) > 5:
-        logger.warning("CORS: Many origins with credentials enabled - consider restricting origins")
+    if allow_credentials and len(cors_origins) > 3:
+        logger.warning("CORS: Multiple origins with credentials enabled - consider restricting origins")
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_credentials=allow_credentials,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Clerk-Token"],
     )
 
     # Security Headers
@@ -128,17 +129,22 @@ def create_app() -> FastAPI:
         return response
 
     # Root endpoint
+    # SECURITY FIX (CWE-200): Don't expose service details in production
     @app.get("/", tags=["Info"])
     async def root() -> dict[str, Any]:
-        return {
-            "service": "Demo Agent API",
-            "version": "2.0.0",
-            "endpoints": {
-                "health": "/health",
-                "demo": "/v1/demo (POST)",
-                "status": "/v1/demo/status (GET)",
-            },
-        }
+        if settings.is_debug:
+            # Development: show full info for debugging
+            return {
+                "service": "Demo Agent API",
+                "version": "2.0.0",
+                "endpoints": {
+                    "health": "/health",
+                    "demo": "/v1/demo (POST)",
+                    "status": "/v1/demo/status (GET)",
+                },
+            }
+        # Production: minimal response
+        return {"status": "ok"}
 
     # Register routers
     app.include_router(health_router)

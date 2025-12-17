@@ -154,12 +154,12 @@ class ClerkService:
                 logger.warning("Invalid JWT format - expected 3 parts")
                 return None
 
-            # Log first 50 chars of token for debugging
-            logger.info(f"JWT token (first 50 chars): {token[:50]}...")
+            # SECURITY FIX (CWE-532): Don't log token content - it can be stolen from logs
+            # Only log in debug mode and only metadata, never token content
+            logger.debug("Extracting kid from JWT header...")
 
             # Decode header (base64url)
             header_b64 = parts[0]
-            logger.info(f"JWT header base64 (raw): {header_b64}")
 
             # Add padding if needed
             padding = 4 - len(header_b64) % 4
@@ -169,10 +169,9 @@ class ClerkService:
             header_json = base64.urlsafe_b64decode(header_b64)
             header = json.loads(header_json)
 
-            logger.info(f"JWT header decoded: {header}")
-
             kid: str | None = header.get("kid")
-            logger.info(f"Extracted kid from JWT header: {kid}")
+            # SECURITY: Only log kid existence, not full header content
+            logger.debug(f"Extracted kid from JWT: {kid[:20] + '...' if kid and len(kid) > 20 else kid}")
             return kid
 
         except Exception as e:
@@ -581,12 +580,18 @@ class ClerkService:
         logger.info("ClerkService closed")
 
 
-# Singleton instance
+# Singleton instance with thread-safe initialization
+import threading
+
 _clerk_service: ClerkService | None = None
+_clerk_service_lock = threading.Lock()
 
 
 def get_clerk_service() -> ClerkService:
     """Get singleton instance of ClerkService.
+
+    SECURITY FIX (CWE-362): Thread-safe singleton initialization.
+    Uses double-checked locking pattern to prevent race conditions.
 
     Returns:
         ClerkService: Singleton instance
@@ -597,5 +602,8 @@ def get_clerk_service() -> ClerkService:
     """
     global _clerk_service
     if _clerk_service is None:
-        _clerk_service = ClerkService()
+        with _clerk_service_lock:
+            # Double-check inside lock
+            if _clerk_service is None:
+                _clerk_service = ClerkService()
     return _clerk_service

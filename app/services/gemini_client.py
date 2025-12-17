@@ -213,7 +213,8 @@ class GeminiClient:
             RuntimeError: If API call fails.
         """
         try:
-            loop = asyncio.get_event_loop()
+            # FIX: Use get_running_loop() instead of deprecated get_event_loop()
+            loop = asyncio.get_running_loop()
             temp = temperature if temperature is not None else settings.temperature
             max_tokens = max_output_tokens or settings.max_output_tokens
 
@@ -278,7 +279,8 @@ class GeminiClient:
             Accurate total token count.
         """
         try:
-            loop = asyncio.get_event_loop()
+            # FIX: Use get_running_loop() instead of deprecated get_event_loop()
+            loop = asyncio.get_running_loop()
             logger.debug(f"Counting tokens for {self.model_name}...")
 
             # Count both in parallel using executor (non-blocking)

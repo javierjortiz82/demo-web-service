@@ -95,9 +95,8 @@ async def demo_query(request_data: DemoRequest, request: Request) -> DemoRespons
                             "hint": "If this persists, contact support with your email address.",
                         },
                     )
-            elif request_data.user_id:
-                user_id = request_data.user_id
-                logger.info(f"User attempting access with user_id: {user_id}")
+                # SECURITY FIX: Do NOT fall back to request_data.user_id when Clerk auth is enabled
+            # This prevents privilege escalation by specifying another user's ID
             else:
                 logger.error("Authentication required: No Clerk token or user_id provided")
                 return JSONResponse(
@@ -126,56 +125,37 @@ async def demo_query(request_data: DemoRequest, request: Request) -> DemoRespons
             """
             user_result = await user_service.db.execute_one(user_query, (user_id,))
 
+            # SECURITY FIX (CWE-204): Use generic error messages to prevent account enumeration
+            # Attackers should not be able to determine account existence or status
+            account_error_response = JSONResponse(
+                status_code=403,
+                content={
+                    "success": False,
+                    "error": "access_denied",
+                    "message": "Access denied. Please ensure your account is properly set up.",
+                    "hint": "If you need assistance, contact support.",
+                },
+            )
+
             if not user_result:
                 logger.warning(f"User ID {user_id} not found")
-                return JSONResponse(
-                    status_code=403,
-                    content={
-                        "success": False,
-                        "error": "user_not_found",
-                        "message": "User account not found. Please register first.",
-                    },
-                )
+                return account_error_response
 
             if not user_result.get("is_active"):
-                return JSONResponse(
-                    status_code=403,
-                    content={
-                        "success": False,
-                        "error": "account_not_active",
-                        "message": "Your account is not active. Please verify your email address first.",
-                    },
-                )
+                logger.warning(f"Inactive account attempted access: user_id={user_id}")
+                return account_error_response
 
             if not user_result.get("is_email_verified"):
-                return JSONResponse(
-                    status_code=403,
-                    content={
-                        "success": False,
-                        "error": "email_not_verified",
-                        "message": "Please verify your email address first.",
-                    },
-                )
+                logger.warning(f"Unverified email attempted access: user_id={user_id}")
+                return account_error_response
 
             if user_result.get("is_suspended"):
-                return JSONResponse(
-                    status_code=403,
-                    content={
-                        "success": False,
-                        "error": "account_suspended",
-                        "message": "Your account has been suspended.",
-                    },
-                )
+                logger.warning(f"Suspended account attempted access: user_id={user_id}")
+                return account_error_response
 
             if user_result.get("is_deleted"):
-                return JSONResponse(
-                    status_code=403,
-                    content={
-                        "success": False,
-                        "error": "account_deleted",
-                        "message": "Your account has been deleted.",
-                    },
-                )
+                logger.warning(f"Deleted account attempted access: user_id={user_id}")
+                return account_error_response
 
             user_email = user_result.get("email")
 
@@ -367,35 +347,35 @@ async def demo_status(
         final_user_id = None
         authenticated_user = get_current_user(request)
 
-        # DEBUG: Log what we received
-        has_state_user = hasattr(request.state, "user")
-        is_auth = getattr(request.state, "is_authenticated", "not_set")
-        logger.warning(
-            f"DEBUG demo_status: has_state_user={has_state_user}, "
-            f"is_authenticated={is_auth}, authenticated_user={authenticated_user}"
-        )
+        # Only log debug info in development mode
+        if settings.is_debug:
+            has_state_user = hasattr(request.state, "user")
+            is_auth = getattr(request.state, "is_authenticated", "not_set")
+            logger.debug(
+                f"demo_status: has_state_user={has_state_user}, "
+                f"is_authenticated={is_auth}, authenticated_user exists={authenticated_user is not None}"
+            )
 
         if authenticated_user and authenticated_user.get("db_user_id"):
             final_user_id = authenticated_user["db_user_id"]
         elif user_id:
             final_user_id = user_id
         else:
-            # DEBUG: Include state info in response
-            debug_info = {
-                "has_state_user": has_state_user,
-                "is_authenticated": str(is_auth),
-                "db_user_id": authenticated_user.get("db_user_id") if authenticated_user else None,
-                "clerk_user_id": authenticated_user.get("clerk_user_id") if authenticated_user else None,
-                "email": authenticated_user.get("email") if authenticated_user else None,
+            # SECURITY FIX: Don't expose debug info in production
+            response_content: dict[str, Any] = {
+                "success": False,
+                "error": "authentication_required",
+                "message": "Please log in to view quota status.",
             }
+            # Only include debug info in development mode
+            if settings.is_debug:
+                response_content["debug"] = {
+                    "has_state_user": hasattr(request.state, "user"),
+                    "is_authenticated": str(getattr(request.state, "is_authenticated", "not_set")),
+                }
             return JSONResponse(
                 status_code=401,
-                content={
-                    "success": False,
-                    "error": "authentication_required",
-                    "message": "Please log in to view quota status.",
-                    "debug": debug_info,
-                },
+                content=response_content,
             )
 
         user_key = str(final_user_id)

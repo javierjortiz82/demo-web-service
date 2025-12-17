@@ -26,17 +26,26 @@ class UserService:
         logger.info("UserService initialized")
 
 
-# Singleton instance
+# Singleton instance with thread-safe initialization
+import threading
+
 _user_service: UserService | None = None
+_user_service_lock = threading.Lock()
 
 
 def get_user_service() -> UserService:
     """Get singleton instance of UserService.
+
+    SECURITY FIX (CWE-362): Thread-safe singleton initialization.
+    Uses double-checked locking pattern to prevent race conditions.
 
     Returns:
         UserService: Singleton instance.
     """
     global _user_service
     if _user_service is None:
-        _user_service = UserService()
+        with _user_service_lock:
+            # Double-check inside lock
+            if _user_service is None:
+                _user_service = UserService()
     return _user_service
