@@ -64,6 +64,7 @@ class ClerkAuthMiddleware(BaseHTTPMiddleware):
 
     # Public routes that don't require authentication
     PUBLIC_PATHS: set[str] = {
+        "/",
         "/health",
         "/metrics",
         "/docs",
