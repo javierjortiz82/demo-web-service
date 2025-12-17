@@ -165,7 +165,7 @@ class ClerkService:
             header = json.loads(header_json)
 
             kid: str | None = header.get("kid")
-            logger.debug(f"Extracted kid from JWT header: {kid}")
+            logger.info(f"Extracted kid from JWT header: {kid}")
             return kid
 
         except Exception as e:
@@ -191,7 +191,7 @@ class ClerkService:
             if not kid:
                 return None, "Could not extract 'kid' from JWT header"
 
-            logger.debug(f"Looking for signing key with kid={kid}")
+            logger.info(f"Looking for signing key with kid={kid}")
 
             # Fetch JWKS with retry logic
             max_retries = 2
