@@ -367,17 +367,32 @@ async def demo_status(
         final_user_id = None
         authenticated_user = get_current_user(request)
 
+        # DEBUG: Log what we received
+        has_state_user = hasattr(request.state, "user")
+        is_auth = getattr(request.state, "is_authenticated", "not_set")
+        logger.warning(
+            f"DEBUG demo_status: has_state_user={has_state_user}, "
+            f"is_authenticated={is_auth}, authenticated_user={authenticated_user}"
+        )
+
         if authenticated_user and authenticated_user.get("db_user_id"):
             final_user_id = authenticated_user["db_user_id"]
         elif user_id:
             final_user_id = user_id
         else:
+            # DEBUG: Include state info in response
+            debug_info = {
+                "has_state_user": has_state_user,
+                "is_authenticated": str(is_auth),
+                "user_info": str(authenticated_user)[:100] if authenticated_user else None,
+            }
             return JSONResponse(
                 status_code=401,
                 content={
                     "success": False,
                     "error": "authentication_required",
                     "message": "Please log in to view quota status.",
+                    "debug": debug_info,
                 },
             )
 
