@@ -133,8 +133,12 @@ class ClerkAuthMiddleware(BaseHTTPMiddleware):
         # We prefer X-Forwarded-Authorization if present (contains original Clerk JWT)
 
         # Log all auth-related headers for debugging
-        logger.info(f"Request headers - X-Forwarded-Authorization present: {bool(request.headers.get('X-Forwarded-Authorization'))}")
-        logger.info(f"Request headers - Authorization present: {bool(request.headers.get('Authorization'))}")
+        logger.info(
+            f"Request headers - X-Forwarded-Authorization present: {bool(request.headers.get('X-Forwarded-Authorization'))}"
+        )
+        logger.info(
+            f"Request headers - Authorization present: {bool(request.headers.get('Authorization'))}"
+        )
 
         auth_header = request.headers.get("X-Forwarded-Authorization")
         if auth_header:
