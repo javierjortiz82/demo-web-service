@@ -131,13 +131,18 @@ class ClerkAuthMiddleware(BaseHTTPMiddleware):
         # the original Authorization header is moved to X-Forwarded-Authorization
         # and replaced with the API Gateway's service account JWT.
         # We prefer X-Forwarded-Authorization if present (contains original Clerk JWT)
+
+        # Log all auth-related headers for debugging
+        logger.info(f"Request headers - X-Forwarded-Authorization present: {bool(request.headers.get('X-Forwarded-Authorization'))}")
+        logger.info(f"Request headers - Authorization present: {bool(request.headers.get('Authorization'))}")
+
         auth_header = request.headers.get("X-Forwarded-Authorization")
         if auth_header:
-            logger.debug("Using X-Forwarded-Authorization header (from API Gateway)")
+            logger.info("Using X-Forwarded-Authorization header (from API Gateway)")
         else:
             auth_header = request.headers.get("Authorization")
             if auth_header:
-                logger.debug("Using Authorization header (direct access)")
+                logger.info("Using Authorization header (direct access)")
 
         if not auth_header:
             logger.warning(f"Missing Authorization header: path={path}")
