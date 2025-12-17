@@ -283,20 +283,20 @@ class ClerkService:
                 return None, error
 
             # Decode and verify JWT
-            # Note: Some Clerk JWT templates don't include 'aud' claim by default
-            # We still verify signature (RS256) which is the critical security measure
-            # Audience validation is optional and only enforced if CLERK_PUBLISHABLE_KEY is set
+            # Note: Clerk JWT tokens generated via API don't include 'aud' claim by default
+            # Only tokens generated via frontend SDK with specific JWT template include 'aud'
+            # We verify signature (RS256), expiration, and issuer which are the critical security measures
+            # Audience validation is disabled since Clerk API tokens don't include 'aud'
             claims = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                audience=self.publishable_key if self.publishable_key else None,
                 options={
                     "verify_signature": True,
                     "verify_exp": True,
                     "verify_nbf": True,
                     "verify_iat": True,
-                    "verify_aud": bool(self.publishable_key),  # Only verify if key is configured
+                    "verify_aud": False,  # Clerk tokens don't always include 'aud'
                     "require": ["exp", "iat", "nbf", "sub"],
                 },
             )
