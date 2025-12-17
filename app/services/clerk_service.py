@@ -139,91 +139,39 @@ class ClerkService:
     async def _get_signing_key_from_jwt_with_cache(
         self, token: str, force_refresh: bool = False
     ) -> tuple[Any, str | None]:
-        """Get signing key from JWT with in-memory cache.
+        """Get signing key from JWT using PyJWKClient's internal cache.
 
-        Uses local cache to reduce JWKS endpoint calls.
-        Implements exponential backoff for network errors.
+        PyJWKClient already has cache_keys=True enabled, so we rely on its
+        internal caching mechanism. This method adds retry logic for resilience.
 
         Returns:
             Tuple[signing_key | None, error_message | None]
         """
         try:
-            # First try to get from cache
-            if (
-                not force_refresh
-                and self._jwks_cache is not None
-                and self._jwks_cache_expiry is not None
-                and datetime.now() < self._jwks_cache_expiry
-            ):
-                logger.debug("Using cached JWKS")
-                # Extract kid from token header
-                header = jwt.get_unverified_header(token)
-                kid = header.get("kid")
-                if kid:
-                    for key in self._jwks_cache.get("keys", []):
-                        if key.get("kid") == kid:
-                            from jwt import PyJWK
+            # Use PyJWKClient's internal cache (cache_keys=True)
+            # Add retry logic for network errors
+            max_retries = 2
+            last_error = None
 
-                            return PyJWK.from_dict(key), None
-                    return None, f"Key ID {kid} not found in cached JWKS"
-
-            # Fetch JWKS with retries
-            async with self._jwks_fetch_lock:
-                # Double-check cache after acquiring lock
-                if (
-                    not force_refresh
-                    and self._jwks_cache is not None
-                    and self._jwks_cache_expiry is not None
-                    and datetime.now() < self._jwks_cache_expiry
-                ):
-                    logger.debug("Using cached JWKS (after lock)")
-                    header = jwt.get_unverified_header(token)
-                    kid = header.get("kid")
-                    if kid:
-                        for key in self._jwks_cache.get("keys", []):
-                            if key.get("kid") == kid:
-                                from jwt import PyJWK
-
-                                return PyJWK.from_dict(key), None
-                        return None, f"Key ID {kid} not found in cached JWKS"
-
-                # Fetch JWKS with retry logic
-                signing_key = None
-                max_retries = 2
-                last_error = None
-
-                for attempt in range(max_retries + 1):
-                    try:
-                        signing_key = self.jwks_client.get_signing_key_from_jwt(token)
-                        # Cache the JWKS
-                        jwks_set = self.jwks_client.get_jwk_set()
-                        self._jwks_cache = jwks_set
-                        self._jwks_cache_expiry = datetime.now() + timedelta(
-                            seconds=self.JWKS_CACHE_TTL_SECONDS
+            for attempt in range(max_retries + 1):
+                try:
+                    signing_key = self.jwks_client.get_signing_key_from_jwt(token)
+                    logger.debug("Signing key retrieved successfully")
+                    return signing_key, None
+                except PyJWKClientConnectionError as e:
+                    last_error = e
+                    if attempt < max_retries:
+                        wait_time = 0.5 * (attempt + 1)
+                        logger.warning(
+                            f"JWKS fetch attempt {attempt + 1} failed, retrying in {wait_time}s: {e}"
                         )
-                        logger.info(
-                            f"JWKS fetched successfully and cached for {self.JWKS_CACHE_TTL_SECONDS}s"
-                        )
-                        break
-                    except PyJWKClientConnectionError as e:
-                        last_error = e
-                        if attempt < max_retries:
-                            wait_time = 0.5 * (attempt + 1)
-                            logger.warning(
-                                f"JWKS fetch attempt {attempt + 1} failed, retrying in {wait_time}s: {e}"
-                            )
-                            await asyncio.sleep(wait_time)
-                        else:
-                            logger.error(f"JWKS fetch failed after {max_retries + 1} attempts: {e}")
-                    except Exception:
-                        raise
+                        await asyncio.sleep(wait_time)
+                    else:
+                        logger.error(f"JWKS fetch failed after {max_retries + 1} attempts: {e}")
 
-                if signing_key is None:
-                    if last_error:
-                        return None, f"Failed to fetch signing key: {str(last_error)}"
-                    return None, "Failed to fetch signing key from JWKS"
-
-                return signing_key, None
+            if last_error:
+                return None, f"Failed to fetch signing key: {str(last_error)}"
+            return None, "Failed to fetch signing key from JWKS"
 
         except Exception as e:
             logger.exception(f"Error getting signing key: {e}")
