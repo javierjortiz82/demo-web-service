@@ -218,7 +218,7 @@ jobs:
             --concurrency=80 \
             --cpu-throttling \
             --add-cloudsql-instances=${{ secrets.CLOUD_SQL_CONNECTION }} \
-            --set-env-vars="^||^GCP_PROJECT_ID=${{ env.PROJECT_ID }}||GCP_LOCATION=${{ env.REGION }}||MODEL=gemini-2.5-flash||ENABLE_CLERK_AUTH=true||CLERK_FRONTEND_API=mighty-leopard-52.clerk.accounts.dev||CORS_ALLOW_ORIGINS=https://www.nexusintelligent.ai||CORS_ALLOW_CREDENTIALS=true||LOG_JSON_FORMAT=true||LOG_LEVEL=INFO||DEMO_MAX_TOKENS=5000||SCHEMA_NAME=production" \
+            --set-env-vars="^||^GCP_PROJECT_ID=${{ env.PROJECT_ID }}||GCP_LOCATION=${{ env.REGION }}||MODEL=gemini-2.5-flash||ENABLE_CLERK_AUTH=true||CLERK_FRONTEND_API=sweet-cod-61.clerk.accounts.dev||CORS_ALLOW_ORIGINS=https://www.nexusintelligent.ai||CORS_ALLOW_CREDENTIALS=true||LOG_JSON_FORMAT=true||LOG_LEVEL=INFO||DEMO_MAX_TOKENS=5000||SCHEMA_NAME=production" \
             --set-secrets="DATABASE_URL=database-url:latest,CLERK_SECRET_KEY=clerk-secret-key:latest,CLERK_PUBLISHABLE_KEY=clerk-publishable-key:latest" \
             --quiet
 

@@ -278,25 +278,24 @@ async def demo_query(request_data: DemoRequest, request: Request) -> DemoRespons
 
                 user_msg_query = """
                     INSERT INTO :SCHEMA_NAME.conversation_messages
-                        (session_id, user_id, role, message_text, token_count, created_at)
+                        (session_id, role, message_text, token_count, created_at)
                     VALUES
-                        (%s, %s, 'user', %s, 0, NOW())
+                        (%s, 'user', %s, 0, NOW())
                 """
                 await user_service.db.execute(
-                    user_msg_query, (session_uuid, user_id, sanitized_input)
+                    user_msg_query, (session_uuid, sanitized_input)
                 )
 
                 ai_msg_query = """
                     INSERT INTO :SCHEMA_NAME.conversation_messages
-                        (session_id, user_id, role, agent_name, message_text, token_count, response_time_ms, created_at)
+                        (session_id, role, agent_name, message_text, token_count, response_time_ms, created_at)
                     VALUES
-                        (%s, %s, 'model', %s, %s, %s, %s, NOW())
+                        (%s, 'model', %s, %s, %s, %s, NOW())
                 """
                 await user_service.db.execute(
                     ai_msg_query,
                     (
                         session_uuid,
-                        user_id,
                         "demo",
                         sanitized_response,
                         tokens_used,
@@ -429,6 +428,8 @@ async def get_demo_history(
 
         limit = min(max(1, limit), 500)
 
+        # Query through sessions (linked via customer_email) to avoid
+        # user_id column type mismatch between schema versions.
         messages_query = """
             SELECT
                 cm.id,
@@ -437,7 +438,10 @@ async def get_demo_history(
                 cm.token_count,
                 cm.created_at
             FROM :SCHEMA_NAME.conversation_messages cm
-            WHERE cm.user_id = %s
+            JOIN :SCHEMA_NAME.conversation_sessions cs ON cm.session_id = cs.id
+            WHERE cs.customer_email = (
+                SELECT email FROM :SCHEMA_NAME.demo_users WHERE id = %s
+            )
             ORDER BY cm.created_at ASC
             LIMIT %s
         """

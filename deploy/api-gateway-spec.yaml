@@ -5,6 +5,9 @@ info:
   description: API Gateway for Demo Agent Cloud Run service
   version: '1.0.0'
 host: demo-agent-gateway-vq1gs9i.uc.gateway.dev
+x-google-endpoints:
+  - name: demo-agent-gateway-vq1gs9i.uc.gateway.dev
+    allowCors: true
 schemes:
   - https
 produces:
@@ -59,10 +62,22 @@ paths:
       responses:
         '200':
           description: OK
+    options:
+      summary: CORS preflight
+      operationId: demoStatusCors
+      responses:
+        '200':
+          description: OK
   /v1/demo/history:
     get:
       summary: Get chat history
       operationId: demoHistory
+      responses:
+        '200':
+          description: OK
+    options:
+      summary: CORS preflight
+      operationId: demoHistoryCors
       responses:
         '200':
           description: OK

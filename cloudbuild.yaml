@@ -41,7 +41,7 @@ steps:
       - '--timeout=300'
       - '--concurrency=80'
       - '--add-cloudsql-instances=${PROJECT_ID}:us-central1:demo-db'
-      - '--set-env-vars=^;^GCP_PROJECT_ID=${PROJECT_ID};GCP_LOCATION=us-central1;MODEL=gemini-2.5-flash;ENABLE_CLERK_AUTH=true;CLERK_FRONTEND_API=mighty-leopard-52.clerk.accounts.dev;CORS_ALLOW_ORIGINS=https://www.nexusintelligent.ai,https://odiseo-sales-ai.vercel.app,https://odiseo-web.vercel.app;CORS_ALLOW_CREDENTIALS=true;CORS_ALLOW_HEADERS=Authorization,Content-Type,X-Request-ID,X-Clerk-Token;LOG_JSON_FORMAT=true;LOG_LEVEL=INFO;DEMO_MAX_TOKENS=5000;SCHEMA_NAME=test;DB_POOL_MIN_SIZE=2;DB_POOL_MAX_SIZE=10;ENABLE_FINGERPRINT=true'
+      - '--set-env-vars=^;^GCP_PROJECT_ID=${PROJECT_ID};GCP_LOCATION=us-central1;MODEL=gemini-2.5-flash;ENABLE_CLERK_AUTH=true;CLERK_FRONTEND_API=sweet-cod-61.clerk.accounts.dev;CORS_ALLOW_ORIGINS=*;CORS_ALLOW_CREDENTIALS=false;CORS_ALLOW_HEADERS=Authorization,Content-Type,X-Request-ID,X-Clerk-Token;LOG_JSON_FORMAT=true;LOG_LEVEL=INFO;DEMO_MAX_TOKENS=5000;SCHEMA_NAME=test;DB_POOL_MIN_SIZE=2;DB_POOL_MAX_SIZE=10;ENABLE_FINGERPRINT=true'
       - '--set-secrets=DATABASE_URL=database-url:latest,CLERK_PUBLISHABLE_KEY=clerk-publishable-key:latest'
 
 images:

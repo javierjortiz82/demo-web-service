@@ -96,18 +96,21 @@ def create_app() -> FastAPI:
 
     # CORS Configuration
     # SECURITY: Parse and validate CORS origins
-    cors_origins = [
-        o.strip()
-        for o in settings.cors_allow_origins.split(",")
-        if o.strip() and o.strip().startswith(("http://", "https://"))
-    ]
+    raw_origins = settings.cors_allow_origins.strip()
+    if raw_origins == "*":
+        cors_origins = ["*"]
+    else:
+        cors_origins = [
+            o.strip()
+            for o in raw_origins.split(",")
+            if o.strip() and o.strip().startswith(("http://", "https://"))
+        ]
 
-    # SECURITY (CWE-346): When using credentials, be explicit about origins
-    # If credentials are enabled, don't allow wildcard or too many origins
-    # FIX: Lower threshold from 5 to 3 - credentials with many origins is risky
     allow_credentials = settings.cors_allow_credentials
-    if allow_credentials and len(cors_origins) > 3:
-        logger.warning("CORS: Multiple origins with credentials enabled - consider restricting origins")
+    # SECURITY (CWE-346): Credentials + wildcard is forbidden by browsers
+    if allow_credentials and "*" in cors_origins:
+        logger.warning("CORS: Wildcard with credentials is invalid — disabling credentials")
+        allow_credentials = False
 
     app.add_middleware(
         CORSMiddleware,

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Web API Gateway for Gemini 2.5 with Clerk Auth & Token-bucket rate limiting.
 FastAPI service providing secure, rate-limited AI chat interface powered by Google Gemini 2.5.
 
-**Product**: Odiseo (https://www.nexusintelligent.ai/)
+**Product**: Odiseo (https://www.odiseo.ai/)
 
 ## Common Commands
 
@@ -138,7 +138,7 @@ Required variables:
 - `DATABASE_URL` - PostgreSQL connection string
 - `GCP_PROJECT_ID` - Google Cloud project ID
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account JSON (local dev only)
-- `CLERK_FRONTEND_API` - Clerk instance domain (e.g., `mighty-leopard-52.clerk.accounts.dev`)
+- `CLERK_FRONTEND_API` - Clerk instance domain (e.g., `sweet-cod-61.clerk.accounts.dev`)
 - `SCHEMA_NAME` - PostgreSQL schema name (`test` for Cloud SQL, `public` for local Docker)
 
 Key optional variables:
@@ -159,7 +159,7 @@ See `.env.example` for full documentation of all variables.
 | **Cloud Run** | `demo-agent` in `us-central1` |
 | **Cloud SQL** | `demo-db` (PostgreSQL 15) |
 | **Schema** | `test` |
-| **Clerk Frontend API** | `mighty-leopard-52.clerk.accounts.dev` |
+| **Clerk Frontend API** | `sweet-cod-61.clerk.accounts.dev` |
 
 ### Database Schema
 

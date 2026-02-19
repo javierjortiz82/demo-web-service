@@ -17,9 +17,9 @@ This guide provides step-by-step instructions to deploy the demo-service to Goog
 
 | Setting | Value |
 |---------|-------|
-| **Frontend API** | `mighty-leopard-52.clerk.accounts.dev` |
-| **JWKS URL** | `https://mighty-leopard-52.clerk.accounts.dev/.well-known/jwks.json` |
-| **Publishable Key** | `pk_test_bWlnaHR5LWxlb3BhcmQtNTIuY2xlcmsuYWNjb3VudHMuZGV2JA` |
+| **Frontend API** | `sweet-cod-61.clerk.accounts.dev` |
+| **JWKS URL** | `https://sweet-cod-61.clerk.accounts.dev/.well-known/jwks.json` |
+| **Publishable Key** | `pk_test_c3dlZXQtY29kLTYxLmNsZXJrLmFjY291bnRzLmRldiQ` |
 
 ---
 
@@ -121,7 +121,7 @@ echo -n "postgresql://demo_user:QvAio2n7owgI690aOhzbS1KD4SCbqkHh@/demodb?host=/c
 ### Update Clerk Publishable Key
 
 ```bash
-echo -n "pk_test_bWlnaHR5LWxlb3BhcmQtNTIuY2xlcmsuYWNjb3VudHMuZGV2JA" | \
+echo -n "pk_test_c3dlZXQtY29kLTYxLmNsZXJrLmFjY291bnRzLmRldiQ" | \
   gcloud secrets versions add clerk-publishable-key --data-file=-
 ```
 
@@ -187,7 +187,7 @@ gcloud run deploy ${SERVICE_NAME} \
     --set-env-vars="GCP_LOCATION=${REGION}" \
     --set-env-vars="MODEL=gemini-2.5-flash" \
     --set-env-vars="ENABLE_CLERK_AUTH=true" \
-    --set-env-vars="CLERK_FRONTEND_API=mighty-leopard-52.clerk.accounts.dev" \
+    --set-env-vars="CLERK_FRONTEND_API=sweet-cod-61.clerk.accounts.dev" \
     --set-env-vars="CORS_ALLOW_ORIGINS=https://www.nexusintelligent.ai,https://odiseo-sales-ai.vercel.app,http://localhost:3000" \
     --set-env-vars="CORS_ALLOW_CREDENTIALS=true" \
     --set-env-vars="LOG_JSON_FORMAT=true" \
@@ -293,7 +293,7 @@ VITE_DEMO_AGENT_URL="https://demo-agent-gateway-vq1gs9i.uc.gateway.dev"
 
 1. **Check JWKS connectivity:**
    ```bash
-   curl -s https://mighty-leopard-52.clerk.accounts.dev/.well-known/jwks.json | jq
+   curl -s https://sweet-cod-61.clerk.accounts.dev/.well-known/jwks.json | jq
    ```
 
 2. **Verify Clerk Frontend API is correct:**
